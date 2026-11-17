@@ -2,6 +2,27 @@
 
 SightLine is a cinema booking site that lets you sit in any seat of a true-to-scale 3D hall and see the screen from there before you book it.
 
+![The view from seat L11 in Hall 2, with its view score and measurements beside the seat map](docs/screenshots/seat-view.jpg)
+
+## Screenshots
+
+Every seat gets a view score from its distance, field of view, head tilt and offset from centre. The same hall from the front row scores 42 against 99 for the seat above:
+
+![The view from front-row seat C11: the screen fills the frame and the head tilt is 20 degrees](docs/screenshots/front-row.jpg)
+
+| Home page | Whole hall view |
+|---|---|
+| ![Home page with the featured film and the product headline](docs/screenshots/home.jpg) | ![The hall from above, with a live preview of the chosen seat's view](docs/screenshots/whole-hall.jpg) |
+| **Checkout with test payments** | **Ticket with the booked view and GST breakdown** |
+| ![Checkout with UPI, card and pay-at-the-cinema options](docs/screenshots/checkout.jpg) | ![Ticket with QR code, the picture of the seat view and the price breakdown](docs/screenshots/ticket.jpg) |
+
+On a phone the 3D view sits above the seat map:
+
+<p>
+  <img src="docs/screenshots/phone-home.jpg" width="260" alt="Home page on a phone" />
+  <img src="docs/screenshots/phone-booking.jpg" width="260" alt="Booking page on a phone, with the 3D view above the seat map" />
+</p>
+
 ## Run it
 
 You need Node 22.13 or newer, because the server uses Node’s built-in SQLite.
