@@ -1,0 +1,13 @@
+/node_modules
+/dist
+/dist-server
+/data
+.env
+.env.local
+.DS_Store
+*.log
+
+# browser tests
+.venv
+__pycache__
+tests/e2e/screenshots

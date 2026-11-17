@@ -1,0 +1,49 @@
+{
+  "name": "sightline",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:web && vite build --ssr server/index.ts --outDir dist-server",
+    "start": "node dist-server/index.js",
+    "typecheck": "tsc --noEmit",
+    "dev:lan": "vite --host",
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "test:api": "node scripts/api-test.mjs",
+    "db:local": "pglite-server --db=data/pglite --port=54321",
+    "build:web": "tsc --noEmit && vite build",
+    "test:e2e": ".venv/bin/python tests/e2e/test_flows.py",
+    "test:e2e:setup": "python3 -m venv .venv && .venv/bin/pip install -r tests/e2e/requirements.txt"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/playfair-display": "^5.3.0",
+    "@fontsource/bebas-neue": "^5.3.0",
+    "lucide-react": "^1.73.0",
+    "nodemailer": "^10.6.0",
+    "pg": "^8.23.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
+    "three": "^0.187.0",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@electric-sql/pglite-socket": "^0.2.19",
+    "@types/node": "^26.6.6",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
