@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ticket, Trash2 } from 'lucide-react';
 import { Poster } from '../components/Art';
-import { formatDate, formatTime, getMovie, money, parseShow } from '../data/movies';
+import { formatDate, formatTime, getMovie, money, parseShow, venueOf } from '../data/movies';
 import { getHall } from '../lib/hall';
 import { api, errorMessage } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
@@ -95,7 +95,7 @@ export default function BookingsPage() {
             {started ? null : <span className="status-tag">{when(show.start)}</span>}
           </div>
           <p className="muted small">
-            {formatDate(show.start)} · {formatTime(show.start)} · {hall.name} · {hall.format}
+            {formatDate(show.start)} · {formatTime(show.start)} · {venueOf(show)?.cinema.name} · {venueOf(show)?.screen.name}, {hall.format}
           </p>
           <p className="booking-item-seats">
             {sortSeatIds(b.seats).map((s) => (

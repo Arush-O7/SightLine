@@ -1,20 +1,24 @@
 import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, Globe, Star } from 'lucide-react';
+import { ArrowLeft, Clock, Globe, MapPin } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
+import ShowTimes from '../components/ShowTimes';
 import NotFound from './NotFound';
-import { fillLevel, formatRuntime, formatTime, getMovie, money, showsFor, upcomingDays } from '../data/movies';
-import { getHall, getLayout } from '../lib/hall';
+import { getCinema } from '../data/cinemas';
+import { formatRuntime, getMovie, showsFor, upcomingDays, type ShowGroup } from '../data/movies';
+import { getLayout } from '../lib/hall';
 import { useTitle } from '../lib/useTitle';
-import { warmBooking } from '../lib/preload';
+
+const FORMATS = ['All', 'Large screen', 'Recliner', 'Standard'];
 
 export default function MoviePage() {
   const { movieId } = useParams();
   const movie = getMovie(movieId);
   const days = useMemo(() => upcomingDays(7), []);
-  // the chosen day lives in the URL so a showtime list can be shared
+  // the chosen day and format live in the URL so a showtime list can be shared
   const [params, setParams] = useSearchParams();
   const dayParam = params.get('day');
+  const format = FORMATS.includes(params.get('format') ?? '') ? params.get('format')! : 'All';
   // late in the evening today's shows have all started, so open on the first day that still has one
   const firstOpenDay = useMemo(() => {
     if (!movie) return days[0].key;
@@ -23,13 +27,26 @@ export default function MoviePage() {
     return (open ?? days[0]).key;
   }, [movie, days]);
   const dayKey = days.some((d) => d.key === dayParam) ? dayParam! : firstOpenDay;
-  const setDayKey = (key: string) => setParams(key === firstOpenDay ? {} : { day: key }, { replace: true });
+  const setParam = (key: string, value: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
   useTitle(movie?.title);
 
-  if (!movie) return <NotFound title="We couldn’t find that film" />;
+  if (!movie) return <NotFound title="We couldn’t find that movie" />;
 
-  const groups = showsFor(movie, dayKey);
-  const now = Date.now();
+  // group the day's screenings by cinema, keeping each auditorium's times together
+  const byCinema = new Map<string, ShowGroup[]>();
+  for (const g of showsFor(movie, dayKey)) {
+    if (format !== 'All' && getLayout(g.hallId).config.format !== format) continue;
+    byCinema.set(g.cinemaId, [...(byCinema.get(g.cinemaId) ?? []), g]);
+  }
 
   return (
     <div className="movie-page">
@@ -44,22 +61,24 @@ export default function MoviePage() {
             <Poster movie={movie} eager className="movie-head-poster" />
             <div className="movie-head-info">
               <h1 className={`movie-title ${movie.titleFont === 'serif' ? 'serif' : ''}`}>{movie.title}</h1>
-              <p className="hero-tagline">{movie.tagline}</p>
               <div className="meta-row">
-                <span className="rating">
-                  <Star size={14} fill="currentColor" /> {movie.rating.toFixed(1)} <em>({movie.votes})</em>
+                <span>
+                  <Globe size={14} /> {movie.language}
                 </span>
-                <span><Clock size={14} /> {formatRuntime(movie.runtime)}</span>
-                <span className="cert">{movie.cert}</span>
-                <span><Globe size={14} /> {movie.language}</span>
-                <span>{movie.genres.join(' / ')}</span>
+                <span>
+                  <Clock size={14} /> {formatRuntime(movie.runtime)}
+                </span>
+                {movie.cert ? <span className="cert">{movie.cert}</span> : null}
+                <span>{movie.genres.join(', ')}</span>
               </div>
               <p className="movie-synopsis">{movie.synopsis}</p>
               <dl className="credits">
-                <div>
-                  <dt>Director</dt>
-                  <dd>{movie.director}</dd>
-                </div>
+                {movie.director ? (
+                  <div>
+                    <dt>Director</dt>
+                    <dd>{movie.director}</dd>
+                  </div>
+                ) : null}
                 <div>
                   <dt>Cast</dt>
                   <dd>{movie.cast.join(', ')}</dd>
@@ -73,14 +92,20 @@ export default function MoviePage() {
       <section className="container section showtimes">
         <div className="section-head">
           <div>
-            <h2>Showtimes</h2>
+            <h2>Cinemas and Showtimes</h2>
             <p className="muted">Pick a time, then see the view from any seat before you book.</p>
           </div>
         </div>
 
         <div className="day-strip" role="tablist" aria-label="Choose a day">
           {days.map((d) => (
-            <button key={d.key} role="tab" aria-selected={d.key === dayKey} className={`day ${d.key === dayKey ? 'on' : ''}`} onClick={() => setDayKey(d.key)}>
+            <button
+              key={d.key}
+              role="tab"
+              aria-selected={d.key === dayKey}
+              className={`day ${d.key === dayKey ? 'on' : ''}`}
+              onClick={() => setParam('day', d.key === firstOpenDay ? null : d.key)}
+            >
               <span>{d.weekday}</span>
               <b>{d.dayNum}</b>
               <span>{d.month}</span>
@@ -88,49 +113,42 @@ export default function MoviePage() {
           ))}
         </div>
 
-        <div className="hall-times">
-          {groups.map(({ hallId, shows }) => {
-            const hall = getHall(hallId);
-            const layout = getLayout(hallId);
-            const from = Math.min(...hall.zones.map((z) => z.price));
-            return (
-              <article key={hallId} className="hall-time-card">
-                <header>
-                  <span className="badge">{hall.badge}</span>
-                  <h3>
-                    {hall.name} <span className="muted">· {hall.format}</span>
-                  </h3>
-                  <p className="muted small">
-                    {hall.screen.width.toFixed(0)} m screen · {hall.sound} · {layout.seats.length} seats
-                  </p>
-                  <p className="from-price">
-                    Tickets from <b>{money(from)}</b>
-                  </p>
-                </header>
-                <div className="time-row">
-                  {shows.map((show) => {
-                    const past = show.start.getTime() < now;
-                    const fill = fillLevel(show, layout);
-                    return past ? (
-                      <span key={show.id} className="time past" aria-disabled="true">
-                        <b>{formatTime(show.start)}</b>
-                        <small>Started</small>
-                      </span>
-                    ) : (
-                      <Link key={show.id} to={`/book/${show.id}`} className={`time ${fill.tone}`} onMouseEnter={warmBooking} onFocus={warmBooking}>
-                        <b>{formatTime(show.start)}</b>
-                        <small>
-                          <i className="dot" /> {fill.label}
-                        </small>
-
-                      </Link>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
+        <div className="chips format-filter" role="group" aria-label="Filter by auditorium">
+          {FORMATS.map((f) => (
+            <button key={f} type="button" aria-pressed={format === f} className={`chip ${format === f ? 'on' : ''}`} onClick={() => setParam('format', f === 'All' ? null : f)}>
+              {f}
+            </button>
+          ))}
         </div>
+
+        {byCinema.size ? (
+          <div className="venue-list">
+            {[...byCinema].map(([cinemaId, groups]) => {
+              const cinema = getCinema(cinemaId)!;
+              return (
+                <article key={cinemaId} className="venue">
+                  <header className="venue-head">
+                    <h3>
+                      <Link to={`/cinema/${cinema.id}`}>{cinema.name}</Link>
+                    </h3>
+                    <p className="muted small">
+                      <MapPin size={13} aria-hidden="true" /> {cinema.area}
+                    </p>
+                  </header>
+                  <div className="venue-screens">
+                    {groups.map((g) => (
+                      <ShowTimes key={g.screenId} cinema={cinema} screenId={g.screenId} shows={g.shows} />
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="no-results" role="status">
+            <p>No {format === 'All' ? '' : `${format.toLowerCase()} `}shows on this day. Try another day or format.</p>
+          </div>
+        )}
       </section>
     </div>
   );

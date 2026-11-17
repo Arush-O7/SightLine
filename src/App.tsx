@@ -22,6 +22,8 @@ const HelpPage = lazy(() => import('./pages/HelpPage'));
 const ForgotPage = lazy(() => import('./pages/ForgotPage'));
 const ResetPage = lazy(() => import('./pages/ResetPage'));
 const VerifyPage = lazy(() => import('./pages/VerifyPage'));
+const CinemasPage = lazy(() => import('./pages/CinemasPage'));
+const CinemaPage = lazy(() => import('./pages/CinemaPage'));
 const DemoInboxPage = lazy(() => import('./pages/DemoInboxPage'));
 
 function ScrollToTop() {
@@ -68,6 +70,8 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/movie/:movieId" element={<MoviePage />} />
+              <Route path="/cinemas" element={<CinemasPage />} />
+              <Route path="/cinema/:cinemaId" element={<CinemaPage />} />
               <Route path="/book/:showId" element={<BookingPage />} />
               <Route path="/login" element={<AuthPage mode="login" />} />
               <Route path="/signup" element={<AuthPage mode="signup" />} />

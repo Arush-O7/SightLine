@@ -833,7 +833,7 @@ function posterText(ctx: Ctx, w: number, h: number, s: ArtSubject) {
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
   tracked(ctx, 0.32);
   ctx.font = `600 ${w * 0.026}px ${FONT_UI}`;
-  ctx.fillText(`A FILM BY ${s.director.toUpperCase()}`, w / 2 + w * 0.004, h * 0.062);
+  if (s.director) ctx.fillText(`A FILM BY ${s.director.toUpperCase()}`, w / 2 + w * 0.004, h * 0.062);
 
   const isSerif = s.titleFont === 'serif';
   const lh = isSerif ? 1.02 : 0.9;

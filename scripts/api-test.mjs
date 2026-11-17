@@ -74,7 +74,9 @@ async function googleSignIn(c, who, next = '/tickets') {
 
 const d = new Date(Date.now() + 2 * 86400000);
 const key = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-const SHOW = `echoes-of-kepler.${key}.h2.2015`;
+// a large-screen show two days out, taken from the API's own schedule
+const listing = await (await fetch(`${BASE}/api/movies/ramayana-rise-of-a-legend/shows?date=${key}`)).json();
+const SHOW = (listing.shows.find((x) => x.hallId === 'h2') ?? listing.shows[0]).id;
 const stamp = Date.now();
 const mail = (n) => `tester${n}-${stamp}@example.com`;
 const PW = 'correct horse battery';
@@ -85,6 +87,12 @@ const anon = client();
 
 let r = await anon('GET', '/health');
 check('health', r.status === 200 && r.data.ok);
+
+check('schedule lists real cinemas with screen and hall model', listing.shows.length > 5 && listing.shows.every((x) => /~/.test(x.id) && x.cinemaId && x.screenId && /^h[123]$/.test(x.hallId)), JSON.stringify(listing).slice(0, 200));
+r = await anon('GET', '/movies/no-such-movie/shows');
+check('unknown movie has no schedule', r.status === 404);
+r = await anon('GET', '/media');
+check('poster endpoint answers without a TMDB key', r.status === 200 && typeof r.data.movies === 'object');
 
 r = await anon('GET', '/auth/me');
 check('me when signed out is null', r.status === 200 && r.data.user === null);
@@ -131,7 +139,7 @@ check('resend on a confirmed account sends nothing', r.status === 200 && r.data.
 
 r = await anon('POST', `/shows/${SHOW}/hold`, { seats: ['A1'] });
 check('hold requires sign-in', r.status === 401);
-r = await a('POST', `/shows/nope.20260101.h1.1000/hold`, { seats: ['A1'] });
+r = await a('POST', `/shows/nope.20260101.pvr-plaza~a1.1000/hold`, { seats: ['A1'] });
 check('unknown show -> 404', r.status === 404);
 r = await a('POST', `/shows/${SHOW}/hold`, { seats: ['ZZ99'] });
 check('unknown seat rejected', r.status === 400 && r.data.error.code === 'unknown_seat');
@@ -185,7 +193,7 @@ const [c1, c2] = await Promise.all([
 const ok12 = [c1, c2].filter((x) => x.status === 200 || x.status === 201);
 check('double-submit returns the same booking', ok12.length === 2 && c1.data.booking.id === c2.data.booking.id, `${c1.status} ${c2.status} ${JSON.stringify(c2.data)}`);
 const booking = (c1.data ?? c2.data).booking;
-check('server computes the price (client total ignored)', booking.subtotal === 250 * 2 || booking.subtotal >= 500, JSON.stringify(booking));
+check('server computes the price (client total ignored)', booking.subtotal >= 2 * 180 && booking.subtotal !== 1 && booking.total === booking.subtotal + booking.fees, JSON.stringify(booking));
 check('fees are 30 per seat', booking.fees === 60 && booking.total === booking.subtotal + 60);
 check('booking is marked paid with a masked card', booking.paymentStatus === 'paid' && booking.instrument === 'Card •••• 1111' && !JSON.stringify(booking).includes('4111'), JSON.stringify(booking));
 r = await anon('GET', '/config');

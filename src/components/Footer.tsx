@@ -11,14 +11,14 @@ export default function Footer() {
         <div>
           <Logo />
           <p className="muted footer-note">
-            See it before you seat it. Every hall is modelled to scale, so the view you preview is the view you get.
+            Cinema tickets for Delhi, with a 3D view from every seat before you book.
           </p>
         </div>
         <nav className="footer-links" aria-label="Footer">
           <div>
             <h2>Watch</h2>
             <Link to="/">Movies</Link>
-            <Link to="/?section=halls">Our Halls</Link>
+            <Link to="/cinemas">Cinemas</Link>
           </div>
           <div>
             <h2>Account</h2>
@@ -45,7 +45,11 @@ export default function Footer() {
       </div>
       <div className="container footer-base">
         <p className="muted small">
-          Demo product. Films, people and showtimes are fictional, artwork is generated in your browser, and payments run in test mode, so no money moves.
+          Demo product, not affiliated with any cinema or chain named here. Showtimes, prices and seat layouts are illustrative, and
+          payments run in test mode, so no money moves.
+        </p>
+        <p className="muted small">
+          Movie details from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
       </div>
     </footer>

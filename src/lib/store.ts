@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api, setSignedOutHandler, type Booking, type SiteConfig, type User } from './api';
+import { api, setSignedOutHandler, type Booking, type MovieMedia, type SiteConfig, type User } from './api';
 
 export type { Booking, User };
 
@@ -16,6 +16,8 @@ interface State {
   authReady: boolean;
   /** what the server offers (demo tools, real email); null until it answers */
   config: SiteConfig | null;
+  /** official posters by movie id, when the server has a TMDB key */
+  media: Record<string, MovieMedia>;
   /** null until loaded for the signed-in user */
   bookings: Booking[] | null;
   selections: Record<string, string[]>;
@@ -40,12 +42,14 @@ export const useStore = create<State>()(
       user: null,
       authReady: false,
       config: null,
+      media: {},
       bookings: null,
       selections: {},
       snapshots: {},
 
       initAuth: async () => {
         api.config().then((config) => set({ config })).catch(() => {});
+        api.media().then((media) => set({ media })).catch(() => {});
         try {
           const user = await api.me();
           set({ user, authReady: true });

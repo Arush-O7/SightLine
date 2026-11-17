@@ -61,6 +61,11 @@ export interface DemoEmail {
   createdAt: number;
 }
 
+export interface MovieMedia {
+  poster: string | null;
+  backdrop: string | null;
+}
+
 export interface Hold {
   seats: string[];
   expiresAt: number;
@@ -147,6 +152,7 @@ export const api = {
   cancelBooking: (id: string) => request<{ ok: true; refunded: boolean }>('DELETE', `/bookings/${enc(id)}`),
 
   config: () => request<SiteConfig>('GET', '/config'),
+  media: () => request<{ movies: Record<string, MovieMedia> }>('GET', '/media').then((r) => r.movies),
   demoLogin: () => request<{ user: User }>('POST', '/auth/demo', {}).then((r) => r.user),
   forgot: (email: string) => request<{ ok: true }>('POST', '/auth/forgot', { email }),
   resetPassword: (token: string, password: string) => request<{ ok: true }>('POST', '/auth/reset', { token, password }),

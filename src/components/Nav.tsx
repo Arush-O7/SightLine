@@ -41,7 +41,7 @@ export default function Nav() {
           <NavLink to="/" end>
             Movies
           </NavLink>
-          <Link to="/?section=halls">Our Halls</Link>
+          <NavLink to="/cinemas">Cinemas</NavLink>
           <NavLink to="/help">Help</NavLink>
           {user ? (
             <>

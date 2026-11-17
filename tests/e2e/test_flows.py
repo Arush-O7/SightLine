@@ -66,11 +66,18 @@ def run() -> None:
 
         def home():
             go(page, "/")
-            expect(page.locator("h1")).to_have_text("Cinema tickets with the view from your seat")
-            expect(page.locator(".hero-lede")).to_contain_text("seats")
+            expect(page.locator("h1")).to_have_text("See your seat before you book it")
+            expect(page.locator(".home-hero-facts")).to_contain_text("cinemas in Delhi")
             page.screenshot(path=SHOTS / "01-home.png")
 
-        check("home: headline and seat count", home)
+        check("home: headline and city facts", home)
+
+        def live_hall():
+            # the 3D hall loads after the page and starts its tour
+            expect(page.locator(".home-hero-live.on")).to_be_visible(timeout=15000)
+            expect(page.locator(".hero-hall canvas")).to_have_count(1)
+
+        check("home: the live 3D hall starts", live_hall)
 
         def seat_demo():
             score = page.locator(".seat-demo-score b")
@@ -82,33 +89,42 @@ def run() -> None:
 
         check("home: seat demo switches seats", seat_demo)
 
-        def film_switch():
-            second = page.locator(".hero-films button").nth(1)
-            title = second.inner_text()
-            second.click()
-            expect(page.locator(".hero-film-title")).to_have_text(title)
+        def language_filter():
+            page.get_by_role("button", name="Tamil", exact=True).click()
+            expect(page.locator(".movie-card")).to_have_count(1)
+            page.get_by_role("button", name="All", exact=True).click()
+            expect(page.locator(".movie-card").nth(3)).to_be_visible()
 
-        check("home: featured film buttons switch the film", film_switch)
+        check("home: language filter", language_filter)
 
         def search():
-            page.get_by_role("searchbox").fill("kepler")
+            page.get_by_role("searchbox").fill("rajinikanth")
             expect(page.locator(".movie-card")).to_have_count(1)
             page.get_by_role("searchbox").fill("zzzz")
-            expect(page.get_by_text("No films match")).to_be_visible()
+            expect(page.get_by_text("No movies match")).to_be_visible()
             page.get_by_role("button", name="Clear Filters").click()
             expect(page.locator(".movie-card").nth(1)).to_be_visible()
 
         check("home: search filters and clears", search)
 
         def film_page():
-            go(page, "/movie/echoes-of-kepler")
-            expect(page.locator("h1")).to_have_text("Echoes of Kepler")
+            go(page, "/movie/ramayana-rise-of-a-legend")
+            expect(page.locator("h1")).to_have_text("Ramayana: Rise of a Legend")
             # tomorrow always has bookable shows
             page.locator(".day").nth(1).click()
-            page.locator("a.time").first.click()
+            assert page.locator(".venue").count() >= 3, "expected several cinemas"
+            page.get_by_role("button", name="Recliner", exact=True).click()
+            expect(page.locator(".screen-row .badge").first).to_have_text("Recliner")
+            page.get_by_role("button", name="All", exact=True).click()
+            page.locator(".venue a.time").first.click()
             page.wait_for_url(re.compile(r"#/book/"))
 
-        check("film page: pick a day and a showtime", film_page)
+        check("film page: pick a day, a cinema and a showtime", film_page)
+
+        def booking_header():
+            expect(page.locator(".bk-title span")).to_contain_text(re.compile(r"Audi|Main Hall"))
+
+        check("booking: header names the cinema and auditorium", booking_header)
 
         def booking_view():
             page.wait_for_selector(".seatmap")
@@ -188,6 +204,15 @@ def run() -> None:
 
         check("help: topics and answers open", help_page)
 
+        def cinema_page():
+            go(page, "/cinemas")
+            page.locator(".cinema-card").first.click()
+            page.wait_for_url(re.compile(r"#/cinema/"))
+            expect(page.locator(".screen-card").first).to_be_visible()
+            assert page.locator(".venue-movie").count() >= 1
+
+        check("cinemas: list and a cinema's page with screens and movies", cinema_page)
+
         def not_found():
             go(page, "/no-such-page")
             expect(page.get_by_role("link", name="Browse Movies")).to_be_visible()
@@ -213,7 +238,7 @@ def run() -> None:
         phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
         mpage = phone.new_page()
         watch_console(mpage)
-        for path, name in [("/", "home"), ("/movie/echoes-of-kepler", "film"), ("/help", "help"), ("/signup", "sign-up")]:
+        for path, name in [("/", "home"), ("/movie/jailer-2", "film"), ("/cinemas", "cinemas"), ("/help", "help"), ("/signup", "sign-up")]:
             def phone_page(path=path, name=name):
                 go(mpage, path)
                 no_sideways_scroll(mpage)

@@ -1,21 +1,25 @@
 import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
 import { Poster } from './Art';
 import { formatRuntime, type Movie } from '../data/movies';
 
-export default function MovieCard({ movie }: { movie: Movie }) {
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+export default function MovieCard({ movie, cinemas }: { movie: Movie; cinemas?: number }) {
+  const isNew = Date.now() - new Date(movie.released).getTime() < WEEK;
   return (
     <Link to={`/movie/${movie.id}`} className="movie-card">
       <div className="movie-card-art">
         <Poster movie={movie} />
-        <span className="movie-card-rating">
-          <Star size={12} fill="currentColor" /> {movie.rating.toFixed(1)}
-        </span>
-        <span className="movie-card-cta">Book tickets</span>
+        {isNew ? <span className="movie-card-tag">New this week</span> : null}
+        <span className="movie-card-cta">Book Tickets</span>
       </div>
       <h3>{movie.title}</h3>
-      <p className="muted small">
-        {movie.genres.join(' / ')} · {formatRuntime(movie.runtime)} · {movie.cert}
+      <p className="movie-card-meta">
+        {movie.language} · {movie.genres.slice(0, 2).join(', ')}
+      </p>
+      <p className="movie-card-meta">
+        {formatRuntime(movie.runtime)}
+        {cinemas ? ` · in ${cinemas} cinemas` : ''}
       </p>
     </Link>
   );

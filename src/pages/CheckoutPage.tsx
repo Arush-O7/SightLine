@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, CreditCard, FlaskConical, Smartphone, Store, Timer } from 'lucide-react';
 import { Poster } from '../components/Art';
 import NotFound from './NotFound';
-import { BOOKING_FEE, formatDate, formatTime, getMovie, money, parseShow } from '../data/movies';
+import { BOOKING_FEE, formatDate, formatTime, getMovie, money, parseShow, venueOf } from '../data/movies';
 import { getLayout, type Seat } from '../lib/hall';
 import { api, ApiFailure, errorMessage, type Hold, type PaymentInput } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
@@ -353,7 +353,9 @@ export default function CheckoutPage() {
               <p className="muted small">
                 {formatDate(show.start)} · {formatTime(show.start)}
                 <br />
-                {hall.name} · {hall.format}
+                {venueOf(show)?.cinema.name}, {venueOf(show)?.cinema.area}
+                <br />
+                {venueOf(show)?.screen.name} · {hall.format}
               </p>
             </div>
           </div>

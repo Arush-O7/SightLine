@@ -29,6 +29,7 @@ import {
   money,
   parseShow,
   showsFor,
+  venueOf,
   type Show,
 } from '../data/movies';
 import { findBestSeats, getHall, getLayout, scoreColor, seatEye, type Seat } from '../lib/hall';
@@ -309,9 +310,11 @@ function Booking({ show }: { show: Show }) {
   const canHop = (dRow: number, dCol: number) => !!(viewSeat && layout.grid[viewSeat.row + dRow]?.[viewSeat.col + dCol]);
 
   const now = Date.now();
+  const venue = venueOf(show);
   const sameDay = useMemo(
     () =>
       showsFor(movie, show.dateKey)
+        .filter((g) => g.cinemaId === show.cinemaId)
         .flatMap((g) => g.shows)
         .sort((a, b) => a.start.getTime() - b.start.getTime()),
     [movie, show.dateKey],
@@ -333,15 +336,15 @@ function Booking({ show }: { show: Show }) {
         <div className="bk-title">
           <h1>{movie.title}</h1>
           <span>
-            {hall.name} · {formatDate(show.start)}
+            {venue ? `${venue.cinema.name} · ${venue.screen.name}, ${hall.format}` : hall.format} · {formatDate(show.start)}
           </span>
         </div>
-        <nav className="bk-times" aria-label="Showtimes today">
+        <nav className="bk-times" aria-label="Showtimes at this cinema">
           {sameDay.map((s) =>
             s.start.getTime() < now && s.id !== show.id ? null : (
               <Link key={s.id} to={`/book/${s.id}`} replace className={s.id === show.id ? 'on' : ''} aria-current={s.id === show.id}>
                 {formatTime(s.start)}
-                <small>{getHall(s.hallId).format}</small>
+                <small>{venueOf(s)?.screen.name ?? getHall(s.hallId).format}</small>
               </Link>
             ),
           )}

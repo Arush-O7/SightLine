@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { ArrowLeft, CalendarPlus, CheckCircle2, Printer } from 'lucide-react';
 import { Poster } from '../components/Art';
 import NotFound from './NotFound';
-import { formatDate, formatRuntime, formatTime, getMovie, money, parseShow, type Movie, type Show } from '../data/movies';
+import { formatDate, formatRuntime, formatTime, getMovie, money, parseShow, type Movie, type Show, venueOf } from '../data/movies';
 import { getHall, type HallConfig } from '../lib/hall';
 import { api, errorMessage, type Booking } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
@@ -24,7 +24,7 @@ function downloadCalendar(booking: Booking, movie: Movie, show: Show, hall: Hall
     `DTSTART:${stamp(show.start)}`,
     `DTEND:${stamp(end)}`,
     `SUMMARY:${movie.title} — SightLine`,
-    `LOCATION:SightLine\\, ${hall.name} (${hall.format})`,
+    `LOCATION:${venueOf(show)?.cinema.name ?? 'Cinema'} (${venueOf(show)?.screen.name ?? hall.format})\\, ${venueOf(show)?.cinema.area ?? ''}\\, Delhi`,
     `DESCRIPTION:Booking ${booking.id}\\nSeats: ${sortSeatIds(booking.seats).join(', ')}`,
     'END:VEVENT',
     'END:VCALENDAR',
@@ -114,6 +114,7 @@ export default function TicketPage() {
   const show = parseShow(booking.showId);
   if (!movie || !show) return <NotFound title="We Couldn’t Find That Ticket" />;
   const hall = getHall(booking.hallId);
+  const venue = venueOf(show);
   const seats = sortSeatIds(booking.seats);
   const started = show.start.getTime() < Date.now();
 
@@ -158,7 +159,8 @@ export default function TicketPage() {
             <span className="badge">{hall.badge}</span>
             <h2>{movie.title}</h2>
             <p className="muted small">
-              {movie.genres.join(' / ')} · {formatRuntime(movie.runtime)} · {movie.cert}
+              {movie.language} · {movie.genres.join(', ')} · {formatRuntime(movie.runtime)}
+              {movie.cert ? ` · ${movie.cert}` : ''}
             </p>
             <dl className="ticket-grid">
               <div>
@@ -169,10 +171,10 @@ export default function TicketPage() {
                 <dt>Time</dt>
                 <dd>{formatTime(show.start)}</dd>
               </div>
-              <div>
-                <dt>Hall</dt>
+              <div className="wide">
+                <dt>Cinema</dt>
                 <dd>
-                  {hall.name} · {hall.format}
+                  {venue?.cinema.name}, {venue?.cinema.area} · {venue?.screen.name} ({hall.format})
                 </dd>
               </div>
               <div>
@@ -210,7 +212,7 @@ export default function TicketPage() {
           <img src={booking.snapshot} width={720} height={405} alt={`View of the screen from seat ${booking.viewSeat}`} />
           <figcaption>
             <b>Your view from seat {booking.viewSeat}</b>
-            <span className="muted small">Rendered from the 3D model of {hall.name} when you booked.</span>
+            <span className="muted small">Rendered from the 3D model of {venue?.screen.name ?? 'the auditorium'} when you booked.</span>
           </figcaption>
         </figure>
       ) : null}

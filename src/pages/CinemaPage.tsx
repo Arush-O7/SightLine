@@ -1,0 +1,101 @@
+import { useMemo } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, MapPin } from 'lucide-react';
+import { Poster } from '../components/Art';
+import HallPlan from '../components/HallPlan';
+import ShowTimes from '../components/ShowTimes';
+import NotFound from './NotFound';
+import { getCinema } from '../data/cinemas';
+import { formatRuntime, showsAt, upcomingDays } from '../data/movies';
+import { getLayout } from '../lib/hall';
+import { useTitle } from '../lib/useTitle';
+
+export default function CinemaPage() {
+  const { cinemaId } = useParams();
+  const cinema = getCinema(cinemaId);
+  const days = useMemo(() => upcomingDays(7), []);
+  const [params, setParams] = useSearchParams();
+  const firstOpenDay = useMemo(() => {
+    if (!cinema) return days[0].key;
+    const now = Date.now();
+    const open = days.find((d) => showsAt(cinema, d.key).some((m) => m.groups.some((g) => g.shows.some((s) => s.start.getTime() > now))));
+    return (open ?? days[0]).key;
+  }, [cinema, days]);
+  const dayKey = days.some((d) => d.key === params.get('day')) ? params.get('day')! : firstOpenDay;
+  useTitle(cinema?.name);
+
+  if (!cinema) return <NotFound title="We couldn’t find that cinema" />;
+  const listing = showsAt(cinema, dayKey);
+
+  return (
+    <div className="container section cinema-page">
+      <Link to="/cinemas" className="back-link">
+        <ArrowLeft size={16} /> All cinemas
+      </Link>
+      <header className="cinema-head">
+        <h1>{cinema.name}</h1>
+        <p className="muted">
+          <MapPin size={14} aria-hidden="true" /> {cinema.area}, Delhi · {cinema.chain}
+        </p>
+      </header>
+
+      <div className="screen-cards">
+        {cinema.screens.map((s) => {
+          const layout = getLayout(s.hallId);
+          return (
+            <div key={s.id} className="screen-card">
+              <HallPlan layout={layout} className="screen-card-plan" />
+              <div>
+                <h2>{s.name}</h2>
+                <p className="muted small">
+                  {layout.config.format} · {layout.seats.length} seats · {layout.config.screen.width.toFixed(0)} m screen
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="day-strip" role="tablist" aria-label="Choose a day">
+        {days.map((d) => (
+          <button
+            key={d.key}
+            role="tab"
+            aria-selected={d.key === dayKey}
+            className={`day ${d.key === dayKey ? 'on' : ''}`}
+            onClick={() => setParams(d.key === firstOpenDay ? {} : { day: d.key }, { replace: true })}
+          >
+            <span>{d.weekday}</span>
+            <b>{d.dayNum}</b>
+            <span>{d.month}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="venue-list">
+        {listing.map(({ movie, groups }) => (
+          <article key={movie.id} className="venue venue-movie">
+            <Link to={`/movie/${movie.id}`} className="venue-poster" aria-label={movie.title}>
+              <Poster movie={movie} />
+            </Link>
+            <div>
+              <header className="venue-head">
+                <h3>
+                  <Link to={`/movie/${movie.id}`}>{movie.title}</Link>
+                </h3>
+                <p className="muted small">
+                  {movie.language} · {movie.genres.slice(0, 2).join(', ')} · {formatRuntime(movie.runtime)}
+                </p>
+              </header>
+              <div className="venue-screens">
+                {groups.map((g) => (
+                  <ShowTimes key={g.screen.id} cinema={cinema} screenId={g.screen.id} shows={g.shows} />
+                ))}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -5,7 +5,8 @@
 // UNIQUE (show_id, seat_id) and every write runs in a transaction.
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { BOOKING_FEE, MAX_SEATS, MOVIES, crowdFor, dateKey, formatDate, formatTime, getMovie, money, parseShow, showsFor, type Show } from '../src/data/movies.js';
+import { BOOKING_FEE, MAX_SEATS, MOVIES, crowdFor, dateKey, formatDate, formatTime, getMovie, money, parseShow, showsFor, venueOf, type Show } from '../src/data/movies.js';
+import { movieMedia, tmdbConfigured } from './media.js';
 import { findBestSeats, getHall, getLayout, type HallLayout } from '../src/lib/hall.js';
 import { getDb, isUniqueViolation, type Database, type Query } from './db.js';
 import { charge } from './gateway.js';
@@ -432,10 +433,12 @@ async function sendVerification(db: Query, req: IncomingMessage, user: { id: num
 function bookingFacts(row: BookingRow, seats: string[]): [string, string][] {
   const show = parseShow(row.show_id);
   const hall = getHall(row.hall_id);
+  const venue = show ? venueOf(show) : null;
   return [
-    ['Film', getMovie(row.movie_id)?.title ?? row.movie_id],
+    ['Movie', getMovie(row.movie_id)?.title ?? row.movie_id],
     ['When', show ? `${formatDate(show.start)}, ${formatTime(show.start)}` : row.show_id],
-    ['Hall', `${hall.name} · ${hall.format}`],
+    ['Cinema', venue ? `${venue.cinema.name}, ${venue.cinema.area}` : '—'],
+    ['Screen', venue ? `${venue.screen.name} · ${hall.format}` : hall.format],
     ['Seats', seats.join(', ')],
     ['Total', money(Number(row.total))],
     ['Payment', row.payment_status === 'due' ? 'Pay at the cinema' : (row.instrument ?? 'Paid')],
@@ -479,7 +482,9 @@ async function seedDemoBookings(db: Database, userId: number) {
   await db.tx(async (q) => {
     for (const item of plan) {
       const movie = MOVIES[item.movie];
-      const group = showsFor(movie, day(item.dayOffset))[Math.min(item.slot, movie.schedule.length - 1)];
+      const groups = showsFor(movie, day(item.dayOffset));
+      if (!groups.length) continue;
+      const group = groups[item.slot % groups.length];
       const show = group.shows[group.shows.length - 1];
       const layout = getLayout(show.hallId);
       const seats = findBestSeats(layout, await unavailableSeats(q, show, layout), item.party);
@@ -636,6 +641,24 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
   }
 
   /* what the site should offer */
+  // official posters and backdrops (only when a TMDB key is configured)
+  if (method === 'GET' && path[0] === 'media') {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return send(res, 200, { source: tmdbConfigured() ? 'tmdb' : null, movies: await movieMedia() });
+  }
+
+  // a movie's screenings on one day: /movies/:id/shows?date=YYYYMMDD
+  if (method === 'GET' && path[0] === 'movies' && path[1] && path[2] === 'shows') {
+    const movie = getMovie(path[1]);
+    if (!movie) throw new ApiError(404, 'movie_not_found', 'That movie isn’t showing.');
+    const date = query.get('date') ?? dateKey(new Date());
+    if (!/^\d{8}$/.test(date)) throw bad('invalid_date', 'Use a date like 20261118.');
+    const shows = showsFor(movie, date).flatMap((g) =>
+      g.shows.map((s) => ({ id: s.id, cinemaId: s.cinemaId, screenId: s.screenId, hallId: s.hallId, time: s.time, start: s.start.getTime() })),
+    );
+    return send(res, 200, { shows });
+  }
+
   if (method === 'GET' && path[0] === 'config') {
     return send(res, 200, {
       demo: demoEnabled(),

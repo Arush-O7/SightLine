@@ -15,7 +15,7 @@ const TOPICS: Topic[] = [
     faq: [
       {
         q: 'How accurate is the view from a seat?',
-        a: 'Each hall is built to scale from its measurements: screen size and height, row spacing, the rise of each row and the aisles. The camera sits at a seated eye level, so the screen appears the size and angle it would from that seat.',
+        a: 'Each auditorium is built to scale from its measurements: screen size and height, row spacing, the rise of each row and the aisles. The camera sits at a seated eye level, so the screen appears the size and angle it would from that seat. In this demo the cinemas’ auditoriums use three representative layouts (standard, large screen and recliner), not each cinema’s own plans.',
       },
       {
         q: 'What is the view score?',
@@ -152,8 +152,10 @@ export default function HelpPage() {
           <section id="terms" className="legal">
             <h2>Terms</h2>
             <p>
-              SightLine is a demonstration product. Films, showtimes, prices and seat availability are fictional. A booking made here
-              does not reserve a seat at any real cinema, and no money changes hands.
+              SightLine is a demonstration product. The movies and cinemas are real, but SightLine is not affiliated with any of them:
+              showtimes, prices, seat layouts and availability are illustrative. A booking made here does not reserve a seat at any
+              real cinema, and no money changes hands. Movie details come from TMDB; this product uses the TMDB API but is not
+              endorsed or certified by TMDB.
             </p>
           </section>
 

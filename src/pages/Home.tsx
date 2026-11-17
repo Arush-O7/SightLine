@@ -1,56 +1,56 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Armchair, Search, Star, Users, Volume2, Projector, Ruler } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Backdrop } from '../components/Art';
+import CinemaCard from '../components/CinemaCard';
 import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
-import { GENRES, MOVIES, formatRuntime, formatTime, nextShow, showsFor, upcomingDays, type Show } from '../data/movies';
-import { HALLS, getLayout, type HallLayout, type Seat } from '../lib/hall';
+import { CINEMAS } from '../data/cinemas';
+import { LANGUAGES, MOVIES, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
+import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
 import { useTitle } from '../lib/useTitle';
 
-/** The soonest show in a hall that is still bookable, across every film. */
-function nextShowInHall(hallId: string): Show | null {
+const HeroHall = lazy(() => import('../components/HeroHall'));
+
+/** The soonest bookable show of a movie in a given hall model, anywhere in the city. */
+function nextShowIn(movieId: string, hallId: string): Show | null {
+  const movie = MOVIES.find((m) => m.id === movieId)!;
   const soon = Date.now() + 10 * 60 * 1000;
-  let best: Show | null = null;
   for (const day of upcomingDays(3)) {
-    for (const movie of MOVIES) {
-      for (const group of showsFor(movie, day.key)) {
-        if (group.hallId !== hallId) continue;
-        for (const s of group.shows) if (s.start.getTime() > soon && (!best || s.start < best.start)) best = s;
-      }
-    }
-    if (best) return best;
+    const hit = showsFor(movie, day.key)
+      .filter((g) => g.hallId === hallId)
+      .flatMap((g) => g.shows)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .find((s) => s.start.getTime() > soon);
+    if (hit) return hit;
   }
-  return best;
+  return null;
 }
 
-/** Three seats that show the range of views in a hall: the front row, the best seat, and the back corner. */
-function sampleSeats(layout: HallLayout): { key: string; label: string; seat: Seat }[] {
+/** Three seats that show the range of views in a hall: the best seat, the front row and a back corner. */
+function tourSeats(layout: HallLayout, taken: Set<string>): { key: string; label: string; seat: Seat }[] {
+  const free = (row: Seat[], from: number) => row.slice(from).find((s) => !taken.has(s.id)) ?? row[from];
   const front = layout.grid[0];
   const back = layout.grid[layout.grid.length - 1];
   return [
-    { key: 'front', label: 'Front Row', seat: front[Math.floor(front.length / 2)] },
     { key: 'best', label: 'Best Seat', seat: layout.byId.get(layout.bestSeatId)! },
+    { key: 'front', label: 'Front Row', seat: free(front, Math.floor(front.length / 2)) },
     { key: 'back', label: 'Back Corner', seat: back[0] },
   ];
 }
 
-const seatName = (seat: Seat) => `Row ${seat.rowLabel}, Seat ${seat.number}`;
-
-function SeatDemo() {
-  const layout = getLayout(HALLS[0].id);
-  const samples = useMemo(() => sampleSeats(layout), [layout]);
-  const show = useMemo(() => nextShowInHall(layout.config.id), [layout]);
+function SeatDemo({ show }: { show: Show | null }) {
+  const layout = getLayout(show?.hallId ?? 'h1');
+  const samples = useMemo(() => tourSeats(layout, new Set()), [layout]);
   const [pick, setPick] = useState('best');
-  const { seat } = samples.find((s) => s.key === pick) ?? samples[1];
+  const { seat } = samples.find((s) => s.key === pick) ?? samples[0];
   const m = layout.metrics[seat.index];
   const tilt = Math.round(m.elevation);
-
   return (
     <div className="seat-demo">
       <HallPlan layout={layout} highlight={seat.id} />
-      <div className="seat-demo-pick" role="group" aria-label={`Compare seats in ${layout.config.name}`}>
+      <div className="seat-demo-pick" role="group" aria-label="Compare three seats">
         {samples.map((s) => (
           <button key={s.key} type="button" className={`chip ${pick === s.key ? 'on' : ''}`} aria-pressed={pick === s.key} onClick={() => setPick(s.key)}>
             {s.label}
@@ -60,9 +60,11 @@ function SeatDemo() {
       <div className="seat-demo-card" aria-live="polite">
         <div className="seat-demo-head">
           <div>
-            <h3>{seatName(seat)}</h3>
+            <h3>
+              Row {seat.rowLabel}, Seat {seat.number}
+            </h3>
             <p className="muted small">
-              {layout.config.name} · {seat.zone.name}
+              {layout.config.format} auditorium · {seat.zone.name}
             </p>
           </div>
           <p className="seat-demo-score">
@@ -97,129 +99,115 @@ function SeatDemo() {
 }
 
 export default function Home() {
-  const featured = useMemo(() => MOVIES.filter((m) => m.featured), []);
-  const [idx, setIdx] = useState(0);
-  const [params, setParams] = useSearchParams();
-  // the genre filter lives in the URL so a filtered list can be shared or bookmarked
-  const genreParam = params.get('genre');
-  const genre = genreParam && GENRES.includes(genreParam) ? genreParam : 'All';
-  const setGenre = (g: string) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('section');
-        if (g === 'All') next.delete('genre');
-        else next.set('genre', g);
-        return next;
-      },
-      { replace: true },
-    );
   useTitle();
+  const [params, setParams] = useSearchParams();
+  const lang = params.get('lang') && LANGUAGES.includes(params.get('lang')!) ? params.get('lang')! : 'All';
   const query = params.get('q') ?? '';
-  const setQuery = (q: string) =>
+  const update = (key: string, value: string | null) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.delete('section');
-        if (q) next.set('q', q);
-        else next.delete('q');
+        if (value) next.set(key, value);
+        else next.delete(key);
         return next;
       },
       { replace: true },
     );
-  const hallsRef = useRef<HTMLElement>(null);
-  const filmsRef = useRef<HTMLElement>(null);
-
+  const moviesRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (params.get('section') === 'halls') {
-      requestAnimationFrame(() => hallsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    }
+    if (params.get('section') === 'movies') requestAnimationFrame(() => moviesRef.current?.scrollIntoView({ block: 'start' }));
   }, [params]);
 
-  const halls = useMemo(
-    () => HALLS.map((hall) => ({ hall, layout: getLayout(hall.id), show: nextShowInHall(hall.id) })),
-    [],
-  );
-  const seatCount = halls.reduce((n, h) => n + h.layout.seats.length, 0);
+  const today = dateKey(new Date());
+  const featured = MOVIES[0];
+  const heroShow = useMemo(() => nextShowIn(featured.id, 'h2'), [featured.id]);
+  const heroLayout = getLayout(heroShow?.hallId ?? 'h2');
+  const heroTaken = useMemo(() => (heroShow ? crowdFor(heroShow, heroLayout) : new Set<string>()), [heroShow, heroLayout]);
+  const heroTour = useMemo(() => tourSeats(heroLayout, heroTaken).map((t) => t.seat), [heroLayout, heroTaken]);
+  const heroVenue = heroShow ? venueOf(heroShow) : null;
+  const [liveSeat, setLiveSeat] = useState<Seat | null>(null);
+  const [live, setLive] = useState(false);
+  const demoShow = useMemo(() => nextShowIn('drishyam-the-conclusion', 'h1'), []);
 
-  const movie = featured[idx];
-  const show = useMemo(() => nextShow(movie), [movie]);
+  const cinemaCount = (movieId: string) =>
+    new Set(showsFor(MOVIES.find((m) => m.id === movieId)!, today).map((g) => g.cinemaId)).size;
   const needle = query.trim().toLowerCase();
   const list = MOVIES.filter(
     (m) =>
-      (genre === 'All' || m.genres.includes(genre)) &&
-      (!needle ||
-        [m.title, m.director, ...m.cast, ...m.genres].some((field) => field.toLowerCase().includes(needle))),
+      (lang === 'All' || m.language === lang) &&
+      (!needle || [m.title, m.director, ...m.cast, ...m.genres].some((f) => f.toLowerCase().includes(needle))),
   );
 
   return (
     <>
-      <section className="hero" aria-labelledby="hero-title">
-        {featured.map((m, i) => (
-          <Backdrop key={m.id} movie={m} priority={i === 0} className={`hero-bg ${i === idx ? 'on' : ''}`} />
-        ))}
-        <div className="hero-scrim" />
-        <div className="container hero-content">
-          <h1 id="hero-title" className="hero-title">
-            Cinema tickets with the view from your seat
-          </h1>
-          <p className="hero-lede">
-            Every hall is built to scale in 3D. Sit in any of our {seatCount} seats and see the screen from there before you pay.
-          </p>
-
-          <div className="hero-film" key={movie.id}>
-            <p className="hero-film-title">{movie.title}</p>
-            <div className="meta-row">
-              <span className="rating">
-                <Star size={14} fill="currentColor" /> {movie.rating.toFixed(1)}
-              </span>
-              <span>{formatRuntime(movie.runtime)}</span>
-              <span className="cert">{movie.cert}</span>
-              <span>{movie.genres.join(' / ')}</span>
-            </div>
-            <div className="hero-cta">
-              <Link className="btn btn-primary btn-lg" to={`/movie/${movie.id}`}>
-                Book Tickets
-              </Link>
-              <Link className="btn btn-glass btn-lg" to={`/book/${show.id}`} onMouseEnter={warmBooking} onFocus={warmBooking}>
-                Preview a Seat <small>{formatTime(show.start)}</small>
-              </Link>
-            </div>
-          </div>
-
-          <div className="hero-films" role="group" aria-label="Featured films">
-            {featured.map((m, i) => (
-              <button key={m.id} type="button" className={`chip ${i === idx ? 'on' : ''}`} aria-pressed={i === idx} onClick={() => setIdx(i)}>
-                {m.title}
-              </button>
-            ))}
-          </div>
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="home-hero-stage">
+          <Backdrop movie={featured} priority className={`home-hero-still ${live ? 'off' : ''}`} />
+          <Suspense fallback={null}>
+            <HeroHall layout={heroLayout} movie={featured} occupied={heroTaken} tour={heroTour} onSeat={setLiveSeat} onReady={() => setLive(true)} />
+          </Suspense>
         </div>
+        <div className="home-hero-scrim" />
+        <div className="container home-hero-copy">
+          <h1 id="home-title">See your seat before you book it</h1>
+          <p className="home-hero-lede">
+            Every cinema here is rebuilt in 3D. Pick a movie, pick a cinema in Delhi, then sit in any seat and see the screen from
+            there.
+          </p>
+          <div className="home-hero-cta">
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => moviesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              Browse Movies
+            </button>
+            <Link className="btn btn-glass btn-lg" to="/cinemas">
+              Explore Cinemas
+            </Link>
+          </div>
+          <p className="home-hero-facts">
+            {MOVIES.length} movies · {CINEMAS.length} cinemas in Delhi · a view score for every seat
+          </p>
+        </div>
+        {heroVenue ? (
+          <div className={`home-hero-live ${live ? 'on' : ''}`} aria-live="polite">
+            <span className="home-hero-live-dot" aria-hidden="true" />
+            <span>
+              {liveSeat ? (
+                <>
+                  Row {liveSeat.rowLabel}, Seat {liveSeat.number} · view score <b>{Math.round(heroLayout.metrics[liveSeat.index].score)}</b>
+                </>
+              ) : (
+                'Whole hall'
+              )}
+            </span>
+            <span className="home-hero-live-venue">
+              {heroVenue.cinema.name} · {heroVenue.screen.name}
+            </span>
+          </div>
+        ) : null}
       </section>
 
-      <section className="container section" ref={filmsRef} id="films">
+      <section className="container section" ref={moviesRef} id="movies">
         <div className="section-head">
           <div>
-            <h2>Movies now showing</h2>
-            <p className="muted">Pick a film, then walk the hall in 3D before you choose a seat.</p>
+            <h2>Now showing in Delhi</h2>
+            <p className="muted">Pick a movie to see where and when it’s playing.</p>
           </div>
           <label className="search">
             <Search size={15} />
-            <span className="sr-only">Search films</span>
+            <span className="sr-only">Search movies</span>
             <input
               type="search"
               name="q"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search films, cast, director…"
+              onChange={(e) => update('q', e.target.value || null)}
+              placeholder="Search movies, cast, director…"
               autoComplete="off"
               spellCheck={false}
             />
           </label>
-          <div className="chips" role="tablist" aria-label="Filter by genre">
-            {['All', ...GENRES].map((g) => (
-              <button key={g} role="tab" aria-selected={genre === g} className={`chip ${genre === g ? 'on' : ''}`} onClick={() => setGenre(g)}>
-                {g}
+          <div className="chips" role="group" aria-label="Filter by language">
+            {['All', ...LANGUAGES].map((l) => (
+              <button key={l} type="button" aria-pressed={lang === l} className={`chip ${lang === l ? 'on' : ''}`} onClick={() => update('lang', l === 'All' ? null : l)}>
+                {l}
               </button>
             ))}
           </div>
@@ -227,12 +215,12 @@ export default function Home() {
         {list.length ? (
           <div className="movie-grid">
             {list.map((m) => (
-              <MovieCard key={m.id} movie={m} />
+              <MovieCard key={m.id} movie={m} cinemas={cinemaCount(m.id)} />
             ))}
           </div>
         ) : (
           <div className="no-results" role="status">
-            <p>No films match {needle ? `“${query.trim()}”` : 'that filter'}.</p>
+            <p>No movies match {needle ? `“${query.trim()}”` : 'that filter'}.</p>
             <button type="button" className="btn btn-secondary" onClick={() => setParams({}, { replace: true })}>
               Clear Filters
             </button>
@@ -241,84 +229,57 @@ export default function Home() {
       </section>
 
       <section className="container section">
-        <div className="feature-band">
-          <div className="feature-intro">
-            <h2>See it before you seat it.</h2>
-            <p className="muted">
-              A seat map tells you where you are sitting. It can’t tell you what you will see. So every hall is built to scale in 3D,
-              with a camera where your eyes will be.
+        <div className="how">
+          <div className="how-steps">
+            <h2>Know the view before you pay</h2>
+            <p className="muted how-intro">
+              A seat map tells you where you’ll sit. SightLine shows you what you’ll see, because every auditorium is modelled to scale with a
+              camera at seated eye level.
             </p>
-            <div className="feature-grid">
-              <article className="feature">
-                <h3>Walk the hall</h3>
-                <p className="muted">Orbit a true-to-scale model of the auditorium. Spin it, zoom in, and click any seat.</p>
-              </article>
-              <article className="feature">
-                <h3>Sit in the seat</h3>
-                <p className="muted">Look around from eye level: the screen, your neighbours and the heads in front.</p>
-              </article>
-              <article className="feature">
-                <h3>Know the numbers</h3>
-                <p className="muted">Every seat gets a view score from its distance, viewing angle and head tilt. Compare two seats, or pick the best ones for your group.</p>
-              </article>
-            </div>
+            <ol className="how-list">
+              <li>
+                <h3>Pick a movie</h3>
+                <p className="muted">See every cinema and showtime for it across Delhi.</p>
+              </li>
+              <li>
+                <h3>Choose a cinema and time</h3>
+                <p className="muted">Standard, large-screen or recliner auditoriums, each built in 3D.</p>
+              </li>
+              <li>
+                <h3>Sit in any seat</h3>
+                <p className="muted">Look around from eye level, compare seats by view score, then book.</p>
+              </li>
+            </ol>
           </div>
-          <SeatDemo />
+          <SeatDemo show={demoShow} />
         </div>
       </section>
 
-      <section className="container section" ref={hallsRef} id="halls">
+      <section className="container section" id="cinemas">
         <div className="section-head">
           <div>
-            <h2>Our halls</h2>
-            <p className="muted">Three rooms, three ways to watch.</p>
+            <h2>Cinemas in Delhi</h2>
+            <p className="muted">From Saket to Connaught Place. Each card shows the plan of its biggest auditorium.</p>
           </div>
+          <Link to="/cinemas" className="btn btn-secondary">
+            All Cinemas
+          </Link>
         </div>
-        <div className="hall-grid">
-          {halls.map(({ hall, layout, show: hallShow }) => (
-            <article key={hall.id} className="hall-card">
-              <HallPlan layout={layout} className="hall-card-plan" />
-              <div className="hall-card-top">
-                <span className="badge">{hall.badge}</span>
-                <h3>
-                  {hall.name} <span className="muted">· {hall.format}</span>
-                </h3>
-                <p className="muted">{hall.blurb}</p>
-              </div>
-              <ul className="spec-list">
-                <li><Ruler size={15} /> {hall.screen.width.toFixed(1)} m × {hall.screen.height.toFixed(1)} m screen</li>
-                <li><Users size={15} /> {layout.seats.length} seats · {hall.rows} rows</li>
-                <li><Projector size={15} /> {hall.projection}</li>
-                <li><Volume2 size={15} /> {hall.sound}</li>
-                <li><Armchair size={15} /> {hall.zones.map((z) => z.name).join(' · ')}</li>
-              </ul>
-              {hallShow ? (
-                <Link
-                  className="btn btn-secondary"
-                  to={`/book/${hallShow.id}?seat=${layout.bestSeatId}`}
-                  aria-label={`Preview the best seat in ${hall.name}`}
-                  onMouseEnter={warmBooking}
-                  onFocus={warmBooking}
-                >
-                  Preview the Best Seat
-                </Link>
-              ) : null}
-            </article>
+        <div className="cinema-grid">
+          {CINEMAS.slice(0, 6).map((c) => (
+            <CinemaCard key={c.id} cinema={c} dayKey={today} />
           ))}
         </div>
-        <div className="home-close">
-          <p>Pick a film and a showtime, then choose your seat from the view.</p>
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => {
-              filmsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              filmsRef.current?.querySelector('input')?.focus({ preventScroll: true });
-            }}
-          >
-            Book Tickets
-          </button>
-        </div>
+        {heroShow ? (
+          <div className="home-close">
+            <p>
+              {featured.title} is playing next at {heroVenue?.cinema.name}, {formatTime(heroShow.start)}.
+            </p>
+            <Link className="btn btn-primary btn-lg" to={`/movie/${featured.id}`}>
+              Book Tickets
+            </Link>
+          </div>
+        ) : null}
       </section>
     </>
   );
