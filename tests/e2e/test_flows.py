@@ -86,6 +86,9 @@ def run() -> None:
             expect(page.get_by_role("button", name="Back Corner")).to_have_attribute("aria-pressed", "true")
             assert score.inner_text() != best, "the score did not change for another seat"
             expect(page.locator(".seat-demo .hall-plan rect.on")).to_have_count(1)
+            page.locator(".seat-demo").get_by_role("button", name="Details").click()
+            expect(page.locator(".seat-demo .seat-details-pop")).to_contain_text("field of view")
+            page.locator(".seat-demo").get_by_role("button", name="Close details").click()
 
         check("home: seat demo switches seats", seat_demo)
 
@@ -134,6 +137,27 @@ def run() -> None:
             page.screenshot(path=SHOTS / "02-booking.png")
 
         check("booking: 3D view, seat map and seat card render", booking_view)
+
+        def popular_seats():
+            expect(page.locator(".seatmap-pop").first).to_be_attached()
+            picks = page.locator(".popular-picks-list .chip")
+            assert picks.count() >= 1, "no most-booked seats are offered"
+            seat = picks.last.inner_text()
+            picks.last.click()
+            expect(page.locator(".seat-card h2")).to_contain_text(f"Seat {int(seat[1:])}")
+            expect(page.locator(".seat-card-pop")).to_contain_text("most booked")
+            picks.first.click()
+
+        check("booking: most booked seats are marked and can be picked", popular_seats)
+
+        def seat_details():
+            expect(page.locator(".seat-card .stats")).to_have_count(0)
+            page.locator(".seat-card").get_by_role("button", name="Details").click()
+            expect(page.locator(".seat-details-pop")).to_contain_text("to screen")
+            page.keyboard.press("Escape")
+            expect(page.locator(".seat-details-pop")).to_have_count(0)
+
+        check("booking: measurements open from the Details button", seat_details)
 
         def select_and_sign_in():
             page.get_by_role("button", name=re.compile(r"^Select Seat")).click()

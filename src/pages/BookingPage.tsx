@@ -17,17 +17,21 @@ import {
   X,
 } from 'lucide-react';
 import Hall3D, { type Hall3DHandle } from '../components/Hall3D';
+import SeatDetails from '../components/SeatDetails';
 import SeatMap2D from '../components/SeatMap2D';
 import NotFound from './NotFound';
 import {
   BOOKING_FEE,
   MAX_SEATS,
+  POPULAR_WEEKS,
   crowdFor,
   formatDate,
   formatTime,
   getMovie,
   money,
   parseShow,
+  popularSeats,
+  seatPopularity,
   showsFor,
   venueOf,
   type Show,
@@ -146,6 +150,19 @@ function Booking({ show }: { show: Show }) {
   const metrics = focusSeat ? layout.metrics[focusSeat.index] : null;
   const focusTaken = focusSeat ? occupied.has(focusSeat.id) : false;
   const focusPicked = focusSeat ? selected.has(focusSeat.id) : false;
+
+  // the seats people book most in this kind of auditorium, and the ones still free for this show
+  const popular = useMemo(() => popularSeats(show.hallId, layout), [show.hallId, layout]);
+  const bookedShare = useMemo(() => seatPopularity(show.hallId, layout), [show.hallId, layout]);
+  const popularFree = useMemo(
+    () =>
+      [...popular]
+        .map((id) => layout.byId.get(id)!)
+        .filter((seat) => !occupied.has(seat.id) && !selected.has(seat.id))
+        .sort((a, b) => layout.metrics[b.index].score - layout.metrics[a.index].score)
+        .slice(0, 6),
+    [popular, layout, occupied, selected],
+  );
 
   const toggle = useCallback(
     (seat: Seat) => {
@@ -325,7 +342,6 @@ function Booking({ show }: { show: Show }) {
     document.querySelector('.bk-times a.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, []);
 
-  const offCentre = focusSeat ? seatEye(focusSeat)[0] : 0;
 
   return (
     <div className="bk">
@@ -484,6 +500,7 @@ function Booking({ show }: { show: Show }) {
                 selected={selected}
                 focusId={focusId}
                 heatmap={heatmap}
+                popular={popular}
                 onHover={(seat) => mode === 'orbit' && setHoverId(seat?.id ?? null)}
                 onSeatClick={choose}
               />
@@ -507,8 +524,29 @@ function Booking({ show }: { show: Show }) {
                   <span>
                     <i className="picked" /> Selected
                   </span>
+                  <span>
+                    <i className="popular" /> Most booked
+                  </span>
                 </div>
               )}
+              {popularFree.length ? (
+                <div className="popular-picks">
+                  <p>Most booked seats still free</p>
+                  <div className="popular-picks-list" role="group" aria-label="Most booked seats still free">
+                    {popularFree.map((seat) => (
+                      <button
+                        key={seat.id}
+                        type="button"
+                        className={`chip ${focusId === seat.id ? 'on' : ''}`}
+                        aria-pressed={focusId === seat.id}
+                        onClick={() => choose(seat)}
+                      >
+                        {seat.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </section>
 
             {focusSeat && metrics && (
@@ -524,32 +562,20 @@ function Booking({ show }: { show: Show }) {
                     </p>
                     <p className="verdict">{metrics.label}</p>
                   </div>
-                  <div className="score" title="View score out of 100">
-                    <b>{metrics.score}</b>
-                    <span>view score</span>
+                  <div className="seat-card-side">
+                    <div className="score" title="View score out of 100">
+                      <b>{metrics.score}</b>
+                      <span>view score</span>
+                    </div>
+                    <SeatDetails layout={layout} seat={focusSeat} />
                   </div>
                 </div>
-                <dl className="stats">
-                  <div>
-                    <dt>to screen</dt>
-                    <dd>{metrics.distance.toFixed(1)} m</dd>
-                  </div>
-                  <div>
-                    <dt>field of view</dt>
-                    <dd>{Math.round(metrics.hAngle)}°</dd>
-                  </div>
-                  <div>
-                    <dt>{Math.abs(offCentre) < 0.15 ? 'position' : offCentre < 0 ? 'left of centre' : 'right of centre'}</dt>
-                    <dd>{Math.abs(offCentre) < 0.15 ? 'Centre' : `${Math.abs(offCentre).toFixed(1)} m`}</dd>
-                  </div>
-                  <div>
-                    <dt>head tilt</dt>
-                    <dd>
-                      {Math.abs(Math.round(metrics.elevation))}°{metrics.elevation >= 0.5 ? ' up' : metrics.elevation <= -0.5 ? ' down' : ''}
-                    </dd>
-                  </div>
-                </dl>
-                <p className="seat-card-hint">{metrics.hint}</p>
+                {popular.has(focusSeat.id) ? (
+                  <p className="seat-card-pop">
+                    <i aria-hidden="true" /> One of the most booked seats here, taken at {Math.round((bookedShare.get(focusSeat.id) ?? 0) * 100)}% of shows in the
+                    last {POPULAR_WEEKS} weeks
+                  </p>
+                ) : null}
                 <div className="seat-card-tools">
                   <button
                     type="button"
@@ -619,11 +645,11 @@ function Booking({ show }: { show: Show }) {
                         {(() => {
                           const a = layout.metrics[compareSeat.index];
                           const b = layout.metrics[otherSeat.index];
+                          const pa = bookedShare.get(compareSeat.id) ?? 0;
+                          const pb = bookedShare.get(otherSeat.id) ?? 0;
                           const rows: [string, string, string, number][] = [
                             ['View score', String(a.score), String(b.score), Math.sign(a.score - b.score)],
-                            ['To screen', `${a.distance.toFixed(1)} m`, `${b.distance.toFixed(1)} m`, 0],
-                            ['Field of view', `${Math.round(a.hAngle)}°`, `${Math.round(b.hAngle)}°`, 0],
-                            ['Head tilt', `${Math.abs(Math.round(a.elevation))}°`, `${Math.abs(Math.round(b.elevation))}°`, Math.sign(Math.abs(b.elevation) - Math.abs(a.elevation))],
+                            ['Booked at', `${Math.round(pa * 100)}% of shows`, `${Math.round(pb * 100)}% of shows`, Math.sign(Math.round(pa * 100) - Math.round(pb * 100))],
                             ['Price', money(compareSeat.zone.price), money(otherSeat.zone.price), Math.sign(otherSeat.zone.price - compareSeat.zone.price)],
                           ];
                           return rows.map(([label, av, bv, better]) => (

@@ -22,12 +22,20 @@ const TOPICS: Topic[] = [
         a: 'A number out of 100 for each seat. It combines how much of your vision the screen fills, how far you have to tilt your head, and how far off-centre you are. Around 50° of screen, a level head and a central seat score highest.',
       },
       {
+        q: 'What are the most booked seats?',
+        a: 'Seats with a dot on the map are the ones people booked most often in this kind of auditorium over the last four weeks, and the ones still free for your show are listed under the map. In this demo those bookings come from the same simulated audience as the rest of the hall.',
+      },
+      {
+        q: 'Where are the distance and angle measurements?',
+        a: 'Press Details on any seat. It shows the distance to the screen, how much of your vision the screen fills, how far you sit from the centre and how far you tilt your head.',
+      },
+      {
         q: 'How do I choose a seat?',
         a: 'Tap a seat on the map to see its view. Tap the same seat again, or press Select Seat, to choose it. On a keyboard, use the arrow keys to move between seats and Enter to select. Shift with the arrow keys looks around.',
       },
       {
         q: 'Can I compare two seats?',
-        a: 'Yes. Open a seat, press Compare, then pick another seat. Both views appear side by side with their distance, field of view, score and price.',
+        a: 'Yes. Open a seat, press Compare, then pick another seat. Both views appear side by side with their view score, how often each is booked, and price.',
       },
       {
         q: 'Can I show a seat to a friend before booking?',

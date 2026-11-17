@@ -10,13 +10,13 @@ You pick a movie, then a cinema and a showtime, then a seat. The movies are curr
 
 ![A movie's cinemas and showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg)
 
-The booking screen opens on the view from the best free seat. Every seat gets a view score from its distance, field of view, head tilt and offset from centre:
+The booking screen opens on the view from the best free seat. Every seat gets a view score from its distance, field of view, head tilt and offset from centre (the **Details** button shows the numbers), and the seats people book most are marked with a dot:
 
-![The view from seat L11 in a large-screen auditorium, with its view score and measurements beside the seat map](docs/screenshots/seat-view.jpg)
+![The view from seat M11 in a large-screen auditorium, with the most booked seats dotted on the seat map and listed below it](docs/screenshots/seat-view.jpg)
 
-The same auditorium from the front row scores far lower: the screen overflows the frame and you look up at it.
+The measurements stay out of the way until you press **Details**:
 
-![The view from front-row seat C11](docs/screenshots/front-row.jpg)
+![The Details pop-up for seat M11: distance to the screen, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg)
 
 | A cinema and its auditoriums | Whole hall view |
 |---|---|
@@ -140,7 +140,7 @@ To show it on a phone on the same Wi-Fi, start with `npm run dev:lan` and open t
 1. **Home.** The 3D auditorium behind the headline tours a few seats and names each one’s view score. Search for a movie or filter by language.
 2. **Cinemas.** Open a cinema to see its auditoriums and everything playing there that day.
 3. **Movie page, then a showtime.** Pick a day, filter by auditorium type, then choose a time at a cinema. The booking screen opens on the view from the best free seat.
-4. **Seat view.** Tap seats on the map to jump between views, and use the arrows to move a row back or forward. Compare a front-row seat with a middle seat.
+4. **Seat view.** Tap seats on the map to jump between views, and use the arrows to move a row back or forward. The dotted seats are the most booked; pick one from the list under the map. Press **Details** for the distance and angles.
 5. **Compare.** Press **Compare** on one seat, then tap another to see both views and their numbers side by side.
 6. **Whole Hall**, the **View Quality** heatmap, and **Pick for Me** for a group.
 7. **Share** copies a link that opens the hall at that exact seat.

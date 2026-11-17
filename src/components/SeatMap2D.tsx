@@ -8,6 +8,8 @@ interface Props {
   selected: Set<string>;
   focusId: string | null;
   heatmap: boolean;
+  /** the most booked seats, marked with a dot */
+  popular: Set<string>;
   onHover: (seat: Seat | null) => void;
   onSeatClick: (seat: Seat) => void;
 }
@@ -20,6 +22,8 @@ interface RowProps {
   seats: Seat[];
   /** one character per seat (picked / taken / accessible / free) — a cheap value to compare */
   states: string;
+  /** one character per seat, 1 for a popular seat */
+  pops: string;
   /** column of the focused seat in this row, or -1 */
   focusCol: number;
   /** view scores for this row when the heatmap is on, otherwise null */
@@ -35,7 +39,7 @@ interface RowProps {
  * windowed. Instead each row is memoised: selecting or focusing a seat re-renders
  * only the one or two rows that actually changed, not every seat in the hall.
  */
-const SeatRow = memo(function SeatRow({ seats, states, focusCol, scores, y, size, ox, labelX }: RowProps) {
+const SeatRow = memo(function SeatRow({ seats, states, pops, focusCol, scores, y, size, ox, labelX }: RowProps) {
   return (
     <g>
       <text x={labelX} y={y + size / 2 + 1.85} className="seatmap-row" textAnchor="end">
@@ -47,10 +51,12 @@ const SeatRow = memo(function SeatRow({ seats, states, focusCol, scores, y, size
         const picked = code === 'p';
         const heat = scores && !picked && !taken ? scoreColor(scores[i]) : undefined;
         const focused = focusCol === i;
-        return (
+        const popular = pops[i] === '1';
+        const x = ox + seat.x * K - size / 2;
+        return [
           <rect
             key={seat.id}
-            x={ox + seat.x * K - size / 2}
+            x={x}
             y={y}
             width={size}
             height={size}
@@ -60,19 +66,20 @@ const SeatRow = memo(function SeatRow({ seats, states, focusCol, scores, y, size
             data-seat={seat.id}
             role="button"
             tabIndex={focused ? 0 : -1}
-            aria-label={`Row ${seat.rowLabel}, seat ${seat.number}, ${taken ? 'taken' : `${seat.zone.name} ${money(seat.zone.price)}`}`}
+            aria-label={`Row ${seat.rowLabel}, seat ${seat.number}, ${taken ? 'taken' : `${seat.zone.name} ${money(seat.zone.price)}`}${popular ? ', most booked' : ''}`}
             aria-pressed={picked}
             aria-disabled={taken}
           >
-            <title>{`${seat.id} · ${taken ? 'Taken' : seat.zone.name}`}</title>
-          </rect>
-        );
+            <title>{`${seat.id} · ${taken ? 'Taken' : seat.zone.name}${popular ? ' · Most booked' : ''}`}</title>
+          </rect>,
+          popular && !heat ? <circle key={`${seat.id}-pop`} cx={x + size / 2} cy={y + size / 2} r={size * 0.2} className={`seatmap-pop ${STATE_CLASS[code]}`} /> : null,
+        ];
       })}
     </g>
   );
 });
 
-function SeatMap2D({ layout, occupied, selected, focusId, heatmap, onHover, onSeatClick }: Props) {
+function SeatMap2D({ layout, occupied, selected, focusId, heatmap, popular, onHover, onSeatClick }: Props) {
   const { config, grid, seatsWidth } = layout;
   const size = config.seatPitch * K * 0.78;
   const rowGap = config.seatPitch * K * 1.14;
@@ -165,12 +172,17 @@ function SeatMap2D({ layout, occupied, selected, focusId, heatmap, onHover, onSe
 
       {grid.map((row, r) => {
         let states = '';
-        for (const seat of row) states += selected.has(seat.id) ? 'p' : occupied.has(seat.id) ? 't' : seat.accessible ? 'a' : 'f';
+        let pops = '';
+        for (const seat of row) {
+          states += selected.has(seat.id) ? 'p' : occupied.has(seat.id) ? 't' : seat.accessible ? 'a' : 'f';
+          pops += popular.has(seat.id) ? '1' : '0';
+        }
         return (
           <SeatRow
             key={r}
             seats={row}
             states={states}
+            pops={pops}
             focusCol={focusSeat && focusSeat.row === r ? focusSeat.col : -1}
             scores={heatmap ? layout.rowScores[r] : null}
             y={top + r * rowGap}

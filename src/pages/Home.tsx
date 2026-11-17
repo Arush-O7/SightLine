@@ -5,6 +5,7 @@ import { Backdrop } from '../components/Art';
 import CinemaCard from '../components/CinemaCard';
 import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
+import SeatDetails from '../components/SeatDetails';
 import { CINEMAS } from '../data/cinemas';
 import { LANGUAGES, MOVIES, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
@@ -46,7 +47,6 @@ function SeatDemo({ show }: { show: Show | null }) {
   const [pick, setPick] = useState('best');
   const { seat } = samples.find((s) => s.key === pick) ?? samples[0];
   const m = layout.metrics[seat.index];
-  const tilt = Math.round(m.elevation);
   return (
     <div className="seat-demo">
       <HallPlan layout={layout} highlight={seat.id} />
@@ -67,27 +67,14 @@ function SeatDemo({ show }: { show: Show | null }) {
               {layout.config.format} auditorium · {seat.zone.name}
             </p>
           </div>
-          <p className="seat-demo-score">
-            <b>{Math.round(m.score)}</b>
-            <span>View score</span>
-          </p>
+          <div className="seat-demo-side">
+            <p className="seat-demo-score">
+              <b>{Math.round(m.score)}</b>
+              <span>View score</span>
+            </p>
+            <SeatDetails layout={layout} seat={seat} />
+          </div>
         </div>
-        <dl className="seat-demo-facts">
-          <div>
-            <dt>Distance</dt>
-            <dd>{m.distance.toFixed(1)} m</dd>
-          </div>
-          <div>
-            <dt>Field of view</dt>
-            <dd>{Math.round(m.hAngle)}°</dd>
-          </div>
-          <div>
-            <dt>Head tilt</dt>
-            <dd>
-              {Math.abs(tilt)}°{tilt > 0 ? ' up' : tilt < 0 ? ' down' : ''}
-            </dd>
-          </div>
-        </dl>
         {show ? (
           <Link className="btn btn-secondary" to={`/book/${show.id}?seat=${seat.id}`} onMouseEnter={warmBooking} onFocus={warmBooking}>
             Sit in {seat.id} in 3D

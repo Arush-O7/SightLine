@@ -379,3 +379,44 @@ export function fillLevel(show: Show, layout: HallLayout, extra = 0): { ratio: n
   if (ratio > 0.3) return { ratio, label: 'Filling fast', tone: 'warm' };
   return { ratio, label: 'Available', tone: 'ok' };
 }
+
+const popularityCache = new Map<string, Map<string, number>>();
+
+export const POPULAR_WEEKS = 4;
+
+/**
+ * How often each seat of a hall model was booked over the last four weeks, from 0
+ * to 1. Every cinema auditorium built on the same model counts.
+ */
+export function seatPopularity(hallId: string, layout: HallLayout): Map<string, number> {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const cacheKey = `${hallId}|${dateKey(today)}`;
+  const hit = popularityCache.get(cacheKey);
+  if (hit) return hit;
+  const counts = new Map<string, number>();
+  let total = 0;
+  for (let back = 1; back <= POPULAR_WEEKS * 7; back++) {
+    const key = dateKey(new Date(today.getTime() - back * 86400000));
+    for (const cinema of CINEMAS) {
+      for (const screen of cinema.screens) {
+        if (screen.hallId !== hallId) continue;
+        for (const p of programme(cinema, screen, key)) {
+          total++;
+          for (const id of crowdFor(makeShow(p.movieId, key, cinema, screen, p.time), layout)) counts.set(id, (counts.get(id) ?? 0) + 1);
+        }
+      }
+    }
+  }
+  const share = new Map<string, number>();
+  for (const seat of layout.seats) share.set(seat.id, total ? (counts.get(seat.id) ?? 0) / total : 0);
+  popularityCache.set(cacheKey, share);
+  return share;
+}
+
+/** The most booked seats of a hall model: about one in sixteen, at least six. */
+export function popularSeats(hallId: string, layout: HallLayout): Set<string> {
+  const share = seatPopularity(hallId, layout);
+  const count = Math.max(6, Math.round(layout.seats.length / 16));
+  return new Set([...share].sort((a, b) => b[1] - a[1]).slice(0, count).map(([id]) => id));
+}

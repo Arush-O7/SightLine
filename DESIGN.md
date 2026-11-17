@@ -279,14 +279,16 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - Available seats are Seat Free; taken seats are outline only; the selected seat is Tungsten; the focused seat has a white stroke. Accessible seats carry a thin Seat Accessible outline.
 - Price zones are not coloured. They are bracketed down the right edge with the zone name and price.
 - Row letters sit to the left in Faint.
+- The most booked seats carry a small Paper dot in their centre (dimmed on a taken seat, Ink on a selected one). Under the legend, the ones still free for this show are listed as pills; tapping one previews it like a tap on the map.
 
 ### Seat Card (signature)
 - A Surface card that leads with the seat name, then zone and price, then the verdict in Tungsten sentence case ("Best in the house"), with the view score as a large tabular number top right. The verdict never sits above the name as a label.
-- Four Surface Raised stat tiles (distance, field of view, offset from centre, head tilt): value above in 15px, label below in Faint 11px.
-- One line of plain-language hint, then the primary action.
+- Under the score, a small outlined Details pill. It opens a Surface Raised pop-up with the four measurements (distance, field of view, offset from centre, head tilt) as tiles and one line of plain-language hint. It closes with its X, Escape or a tap elsewhere. The measurements never fill the card itself.
+- For a most-booked seat, a Surface Raised note with the Paper dot: "One of the most booked seats here, taken at 44% of shows in the last 4 weeks".
+- Then Compare and Share, then the primary action.
 
 ### Seat Comparison (signature)
-- Two 16:9 seat-view thumbnails side by side, each captioned with the seat and zone, above a hairline-ruled table of score, distance, field of view, head tilt and price. The better value in a row is Paper at weight 500; the other stays Muted. No colour is used to mark a winner.
+- Two 16:9 seat-view thumbnails side by side, each captioned with the seat and zone, above a hairline-ruled table of view score, how often each is booked, and price. The better value in a row is Paper at weight 500; the other stays Muted. No colour is used to mark a winner.
 
 ### Stage Controls (signature)
 - Translucent pills floating over the 3D view: a two-option view switch top left, icon tools top right, a caption bottom left naming the seat, a compact four-way seat-hop pad bottom right.
@@ -310,7 +312,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, accessible seats with the Seat Accessible outline, and at most one seat in Tungsten. Used on the home page's seat demo, on each cinema card and on a cinema's auditorium cards, always beside text that states the same facts.
 
 ### Seat Demo
-- On the home page: a Surface panel with a Hall Plan, three pills (Front Row, Best Seat, Back Corner) and, under a hairline, the chosen seat's name, its view score in tabular Headline size, three Surface Raised fact tiles (distance, field of view, head tilt) and a link into that seat in 3D.
+- On the home page: a Surface panel with a Hall Plan, three pills (Front Row, Best Seat, Back Corner) and, under a hairline, the chosen seat's name, its view score in tabular Headline size with a Details pill beneath it, and a link into that seat in 3D.
 
 ### Ticket
 - An 18px-radius Surface card split by a dashed divider into details and a stub with a white-backed QR code and the booking reference in spaced capitals. Prints as black on white.
