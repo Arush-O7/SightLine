@@ -1,27 +1,50 @@
 # SightLine
 
-SightLine is a cinema booking site that lets you sit in any seat of a true-to-scale 3D hall and see the screen from there before you book it.
+SightLine is a cinema booking site for Delhi that lets you sit in any seat of a true-to-scale 3D auditorium and see the screen from there before you book it.
 
-![The view from seat L11 in Hall 2, with its view score and measurements beside the seat map](docs/screenshots/seat-view.jpg)
+![The home page: a live 3D auditorium touring from seat to seat behind the headline](docs/screenshots/home.jpg)
 
-## Screenshots
+## How it works
 
-Every seat gets a view score from its distance, field of view, head tilt and offset from centre. The same hall from the front row scores 42 against 99 for the seat above:
+You pick a movie, then a cinema and a showtime, then a seat. The movies are current releases and the cinemas are real ones across Delhi, from Saket to Connaught Place and Dwarka.
 
-![The view from front-row seat C11: the screen fills the frame and the head tilt is 20 degrees](docs/screenshots/front-row.jpg)
+![A movie's cinemas and showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg)
 
-| Home page | Whole hall view |
+The booking screen opens on the view from the best free seat. Every seat gets a view score from its distance, field of view, head tilt and offset from centre:
+
+![The view from seat L11 in a large-screen auditorium, with its view score and measurements beside the seat map](docs/screenshots/seat-view.jpg)
+
+The same auditorium from the front row scores far lower: the screen overflows the frame and you look up at it.
+
+![The view from front-row seat C11](docs/screenshots/front-row.jpg)
+
+| A cinema and its auditoriums | Whole hall view |
 |---|---|
-| ![Home page with the featured film and the product headline](docs/screenshots/home.jpg) | ![The hall from above, with a live preview of the chosen seat's view](docs/screenshots/whole-hall.jpg) |
+| ![A cinema page with its three auditoriums and today's movies](docs/screenshots/cinema.jpg) | ![The hall from above, with a live preview of the chosen seat's view](docs/screenshots/whole-hall.jpg) |
 | **Checkout with test payments** | **Ticket with the booked view and GST breakdown** |
 | ![Checkout with UPI, card and pay-at-the-cinema options](docs/screenshots/checkout.jpg) | ![Ticket with QR code, the picture of the seat view and the price breakdown](docs/screenshots/ticket.jpg) |
 
 On a phone the 3D view sits above the seat map:
 
 <p>
-  <img src="docs/screenshots/phone-home.jpg" width="260" alt="Home page on a phone" />
-  <img src="docs/screenshots/phone-booking.jpg" width="260" alt="Booking page on a phone, with the 3D view above the seat map" />
+  <img src="docs/screenshots/phone-home.jpg" width="250" alt="Home page on a phone" />
+  <img src="docs/screenshots/phone-showtimes.jpg" width="250" alt="Showtimes on a phone" />
+  <img src="docs/screenshots/phone-booking.jpg" width="250" alt="Booking page on a phone, with the 3D view above the seat map" />
 </p>
+
+## Movies, cinemas and posters
+
+The movies (`src/data/movies.ts`) and cinemas (`src/data/cinemas.ts`) are real, but SightLine isn’t connected to any cinema. Showtimes, prices and seat layouts are illustrative: each auditorium uses one of three hall models (standard, large screen and recliner), and the programme is generated the same way on every load so links keep working.
+
+Posters and backdrops come from [TMDB](https://www.themoviedb.org) when the server has a TMDB key. Get a free one from [TMDB’s API settings](https://www.themoviedb.org/settings/api) and add either value to `.env`:
+
+```bash
+TMDB_API_KEY=your_v3_api_key
+# or
+TMDB_READ_TOKEN=your_v4_read_access_token
+```
+
+Without a key, the site paints its own poster art for each movie, so nothing breaks. The server caches TMDB’s answers for six hours.
 
 ## Run it
 
@@ -114,18 +137,19 @@ To show it on a phone on the same Wi-Fi, start with `npm run dev:lan` and open t
 
 ### The tour
 
-1. **Home.** Search for a film or filter by genre. Point out the halls section.
-2. **Film page, then a showtime.** The booking screen opens on the view from the best free seat.
-3. **Seat view.** Tap seats on the map to jump between views, and use the arrows to move a row back or forward. Compare a front-row seat with a middle seat.
-4. **Compare.** Press **Compare** on one seat, then tap another to see both views and their numbers side by side.
-5. **Whole Hall**, the **View Quality** heatmap, and **Pick for Me** for a group.
-6. **Share** copies a link that opens the hall at that exact seat.
-7. **Continue, then Sign In.** Use **Continue With Demo Account**, **Continue with Google** once it’s set up, or create an account live and confirm it from the Demo Inbox.
-8. **Payment.** Choose Card and press **Fill Test Details**. Change the number to `4000 0000 0000 0002` to show a declined payment, then back to `4111 1111 1111 1111` to pay.
-9. **Ticket.** Show the QR code, the picture of your view, the GST breakdown, **Add to Calendar** and **Print**.
-10. **Demo Inbox** (footer link). The ticket email is already there. Cancel a booking from **My Tickets** and the cancellation and refund email appears too.
-11. **Forgot password** from the sign-in page, then follow the link in the Demo Inbox.
-12. **Account.** Show the sign-in methods, the devices list (sign in on your phone first) and **Delete Account**.
+1. **Home.** The 3D auditorium behind the headline tours a few seats and names each one’s view score. Search for a movie or filter by language.
+2. **Cinemas.** Open a cinema to see its auditoriums and everything playing there that day.
+3. **Movie page, then a showtime.** Pick a day, filter by auditorium type, then choose a time at a cinema. The booking screen opens on the view from the best free seat.
+4. **Seat view.** Tap seats on the map to jump between views, and use the arrows to move a row back or forward. Compare a front-row seat with a middle seat.
+5. **Compare.** Press **Compare** on one seat, then tap another to see both views and their numbers side by side.
+6. **Whole Hall**, the **View Quality** heatmap, and **Pick for Me** for a group.
+7. **Share** copies a link that opens the hall at that exact seat.
+8. **Continue, then Sign In.** Use **Continue With Demo Account**, **Continue with Google** once it’s set up, or create an account live and confirm it from the Demo Inbox.
+9. **Payment.** Choose Card and press **Fill Test Details**. Change the number to `4000 0000 0000 0002` to show a declined payment, then back to `4111 1111 1111 1111` to pay.
+10. **Ticket.** Show the QR code, the picture of your view, the GST breakdown, **Add to Calendar** and **Print**.
+11. **Demo Inbox** (footer link). The ticket email is already there. Cancel a booking from **My Tickets** and the cancellation and refund email appears too.
+12. **Forgot password** from the sign-in page, then follow the link in the Demo Inbox.
+13. **Account.** Show the sign-in methods, the devices list (sign in on your phone first) and **Delete Account**.
 
 ### Test payment values
 
@@ -153,6 +177,7 @@ To also send real email, put SMTP (Simple Mail Transfer Protocol) settings in `.
 Any host that runs Node 22 or Docker can run the server: Railway, Render, Fly.io or a virtual private server. Use the `Dockerfile`, or `npm run build` then `npm start`, and set:
 
 - `PUBLIC_URL=https://your_domain` for email links, Google sign-in and secure cookies
+- `TMDB_API_KEY` or `TMDB_READ_TOKEN` for official posters
 - `DATABASE_URL` for a hosted PostgreSQL
 - SMTP settings for real email, and Google settings for Google sign-in
 - `SIGHTLINE_DEMO=0` if you want no demo tools at all (the Demo Inbox, the demo account and reset)
@@ -185,11 +210,11 @@ Then, in another terminal:
 npm run test:api
 ```
 
-The suite has 107 checks covering sign-up rules, email confirmation, sessions and devices, Google sign-in (PKCE, state binding, replay and account linking), seat holds, double-booking protection, payments, ticket privacy, cancellation and refunds, emails, password reset, account deletion, Demo Inbox privacy, the demo account, rate limiting and security headers. It passes on both SQLite and PostgreSQL: set `DATABASE_URL` on the server to test PostgreSQL.
+The suite has 110 checks covering the showtime listings, sign-up rules, email confirmation, sessions and devices, Google sign-in (PKCE, state binding, replay and account linking), seat holds, double-booking protection, payments, ticket privacy, cancellation and refunds, emails, password reset, account deletion, Demo Inbox privacy, the demo account, rate limiting and security headers. It passes on both SQLite and PostgreSQL: set `DATABASE_URL` on the server to test PostgreSQL.
 
 ## Test in a real browser
 
-The browser tests drive the site the way a visitor would, in your installed Chrome: the home page, a film, choosing a seat in 3D, signing in, a declined and then an approved test card, the ticket, cancelling, the Demo Inbox, Help, the 404 page and four pages at phone size. They also fail on any error in the browser console.
+The browser tests drive the site the way a visitor would, in your installed Chrome: the home page and its live 3D hall, searching and filtering movies, a movie’s cinemas and showtimes, the cinema pages, choosing a seat in 3D, signing in, a declined and then an approved test card, the ticket, cancelling, the Demo Inbox, Help, the 404 page and five pages at phone size. They also fail on any error in the browser console.
 
 Set up once (it creates a local `.venv` folder):
 
@@ -213,10 +238,12 @@ The code splits into the site, the server and a Vercel entry point.
 
 - `three/HallScene.ts`: the 3D hall, with instanced seats, seat view and whole-hall view, a live picture-in-picture preview, lighting, audience and snapshot capture.
 - `lib/hall.ts`: halls defined in metres, the seat layout, and each seat’s view score (distance, field of view, head tilt and offset from centre). Add or change a hall in `HALLS`.
-- `data/movies.ts`: fictional films, schedules, prices in rupees and the simulated crowd.
-- `lib/art.ts`: posters and the on-screen film frame, painted in code with no image files.
+- `data/movies.ts`: the movies, the generated programme of showtimes, prices in rupees and the simulated crowd.
+- `data/cinemas.ts`: the Delhi cinemas and which hall model each auditorium uses.
+- `components/HeroHall.tsx`: the live 3D auditorium behind the home page headline.
+- `lib/art.ts`: the fallback posters and the on-screen film frame, painted in code with no image files.
 - `lib/api.ts` and `lib/store.ts`: the API client and app state. The browser keeps only your in-progress seat choice; accounts and bookings live on the server.
-- `pages/`: home, film, booking (seat map, compare, share), checkout with test payments, ticket, tickets list, sign-in and sign-up, email confirmation, forgot and reset password, account, help and the Demo Inbox.
+- `pages/`: home, movie, cinemas list, cinema, booking (seat map, compare, share), checkout with test payments, ticket, tickets list, sign-in and sign-up, email confirmation, forgot and reset password, account, help and the Demo Inbox.
 
 ### Brand (`public/brand/`)
 
@@ -229,6 +256,7 @@ The code splits into the site, the server and a Vercel entry point.
 - `google.ts`: Sign in with Google (OAuth 2.0 and OpenID Connect, with PKCE).
 - `gateway.ts`: the test payment gateway, with card checks, UPI IDs and approve and decline rules.
 - `mail.ts`: email templates, and real sending when SMTP is configured.
+- `media.ts`: official posters and backdrops from TMDB, when a key is set.
 - `index.ts`: the production server, with static files, security headers, the API, a request log and graceful shutdown.
 
 `api/handler.ts` is the Vercel entry point that hands each request to `server/app.ts`.
@@ -248,6 +276,6 @@ The database, not the browser, decides who gets a seat:
 
 A few parts stand in for what a real launch would need:
 
-- Films, showtimes and the background crowd are fictional.
+- The movies and cinemas are real, but showtimes, prices, seat layouts and the background crowd are illustrative. A real launch would load each cinema’s programme and measured auditoriums.
 - Payments run in test mode. A real launch would replace `server/gateway.ts` with a provider such as Razorpay, which needs a merchant account.
 - Each server keeps its rate limits in memory. Several app servers behind a load balancer would need a shared store such as Redis.

@@ -242,6 +242,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - **Shape:** full pill (999px), 44px tall, 50px for the main action of a screen.
 - **Primary:** Paper fill with Ink text. One per view; it is the next step ("Select Seat", "Continue to Payment", "Confirm Booking").
 - **Secondary:** Surface Raised fill, hairline border, Paper text. Border strengthens on hover.
+- **Glass:** translucent Ink with backdrop blur and a Hairline Strong border, Paper text. Only over a picture or the 3D hall, beside a Primary button.
 - **Text:** Muted text only, turning Paper on hover. For low-stakes actions such as "Keep" or "Cancel".
 - **Disabled:** 35% opacity.
 - **Small:** 34px tall, 13px label, for dense rows such as the devices list and the confirmation banner.
@@ -250,7 +251,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ### Chips and Segmented Controls
 - **Style:** pill with a hairline border and Muted text; the selected one inverts to Paper fill with Ink text.
-- **Used for:** genre filters, the "From Seat / Whole Hall" switch, the showtime switcher, and day tiles (which use a 12px radius).
+- **Used for:** language and auditorium filters, the "From Seat / Whole Hall" switch, the showtime switcher, and day tiles (which use a 12px radius).
 - **Selected-seat chips:** transparent with a Tungsten outline and Tungsten text, with a small remove icon.
 
 ### Cards
@@ -291,10 +292,22 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - Translucent pills floating over the 3D view: a two-option view switch top left, icon tools top right, a caption bottom left naming the seat, a compact four-way seat-hop pad bottom right.
 
 ### Home Hero
-- The film's artwork fills the first screen. Over it, bottom-left: the product line (h1, Hero size) and one sentence stating a real fact from the hall data, then a hairline and the featured film (title at Headline size, metadata, Book Tickets and Preview a Seat), then the featured films as translucent pills. Films change only when the visitor picks one; nothing rotates on a timer.
+- The live 3D auditorium fills the first screen: a large-screen hall playing the lead movie, which flies into a seat, holds it, pulls back to the whole hall and moves on to the next seat. The movie's backdrop sits behind it as a still until the 3D is ready, and stays when WebGL is missing; under reduced motion the hall holds one seat view.
+- Over it, bottom-left: the product line (h1, Hero size), one sentence on how the site works, Browse Movies (Primary) and Explore Cinemas (Glass), then a Muted facts line. Bottom-right, a translucent caption pill names the current seat, its view score and the cinema and auditorium, with an Available dot. A scrim keeps the copy legible over the hall.
+
+### Movie Card
+- The poster at 2:3 with a small "New this week" tag in its corner for releases under a week old, then the title at Title size and two Muted lines: language and two genres, then runtime and how many cinemas show it today. The whole card links to the movie.
+
+### Cinema Card
+- A Surface card linking to the cinema: a Hall Plan of its biggest auditorium, the cinema name at Title size, the area with a small map pin, its auditorium formats as Status Tags, and a hairline footer with today's movie and screen counts.
+
+### Showtimes
+- On a movie page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures and a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
+- Above the cards, the day tiles and a pill filter for auditorium type (All, Large screen, Recliner, Standard). The chosen day and filter live in the URL.
+- On a cinema page the same rows sit under each movie's poster and title instead.
 
 ### Hall Plan
-- A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, accessible seats with the Seat Accessible outline, and at most one seat in Tungsten. Used on the home page's seat demo and on each hall card, always beside text that states the same facts.
+- A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, accessible seats with the Seat Accessible outline, and at most one seat in Tungsten. Used on the home page's seat demo, on each cinema card and on a cinema's auditorium cards, always beside text that states the same facts.
 
 ### Seat Demo
 - On the home page: a Surface panel with a Hall Plan, three pills (Front Row, Best Seat, Back Corner) and, under a hairline, the chosen seat's name, its view score in tabular Headline size, three Surface Raised fact tiles (distance, field of view, head tilt) and a link into that seat in 3D.
@@ -318,7 +331,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep the interface neutral and let film artwork and the 3D hall carry the colour.
+- **Do** keep the interface neutral and let movie artwork and the 3D hall carry the colour.
 - **Do** reserve Tungsten for the visitor's selection and the verdict on it.
 - **Do** separate surfaces with a tonal step and a 1px hairline.
 - **Do** make every pressable control a pill and every container a soft rectangle.
