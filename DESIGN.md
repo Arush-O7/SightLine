@@ -186,7 +186,7 @@ A warm-neutral dark palette with one accent. Colour belongs to the content.
 
 ## Typography
 
-**Marquee Font:** Big Shoulders Display Variable, weight 800, always in capitals. It is the tall condensed lettering of a cinema front (Delite, Regal, a PVR facade), used only where a cinema would put its sign: the logo wordmark, the home page headline and section titles, the seat name and score in the home seat picker, cinema names on photo tiles, and the closing band's title.
+**Marquee Font:** Big Shoulders Display Variable, weight 800, always in capitals. It is the tall condensed lettering of a cinema front (Delite, Regal, a PVR facade), used only where a cinema would put its sign: the logo wordmark, the home page headline and section titles, a movie's title on its page (like the board over a cinema door), a cinema's name over its photo, the titles of the Cinemas and Live Shows listings, cinema names on photo tiles, step numbers in How It Works, and the closing band's title. Pages where you read or fill things in (checkout, account, help, admin) keep Geist.
 
 **Body and Label Font:** Geist Variable (with system-ui fallback), for everything you read or operate.
 
@@ -305,6 +305,12 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ### Seat Comparison
 - "Same hall, two seats": two real renders of the same large-screen auditorium with the house lights up, side by side (stacked on phones): first from the front row, then from the best seat. The images stand alone in rounded frames with a hairline border; the sentence above says which is which. No caption, overlay or score on the images.
+
+### Score Explainer
+- Under the Seat Comparison: "What the view score measures" at Headline size, one sentence, then three Surface cards, one per measurement in order of weight (screen in view 45%, angle to the centre 30%, head tilt 25%). Each card leads with a line drawing on Ink Raised (the screen as a thick Paper stroke, sightlines in Paper at 55%, guides dashed at 22%, the measured angle and the seat in Tungsten), then the title, the weight in Tungsten and one plain sentence with the ideal value. The drawings show the same geometry the code measures.
+
+### How It Works
+- Three steps on the left (a real sequence, so numbered: marquee numerals, Tungsten when active), one large real screenshot of the app on the right in a 16:9 frame. Steps are tabs: clicking or arrow keys switch the screenshot with a short crossfade; only the active step shows its sentence. Under 900px each step shows its own screenshot beneath it and every sentence is visible.
 
 ### Cinema Tiles
 - On the home page all eight cinemas sit in a 4 by 2 grid of 4:3 photo tiles (2 columns on tablets and phones), each a link: the photo, a dark fade at the bottom, the name in marquee capitals and the area beneath. Stand-in photos keep their "Representative photo" pill. The photo zooms 4% on hover.

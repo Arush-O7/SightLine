@@ -1,65 +1,104 @@
 # SightLine
 
-SightLine is a booking site for movies and live shows in Delhi’s cinemas. You can sit in any seat of a true-to-scale 3D auditorium and see the screen or stage from there before you book it.
+**Book a cinema seat after you’ve seen the view from it.** SightLine is a ticket booking product for movies and live shows in Delhi’s cinemas. Every auditorium is modelled to scale in 3D, so before you pay you can sit in any seat and see the screen exactly as it looks from there, with a view score that says how good that seat really is.
+
+![SightLine booking: switching between seats in a 3D model of the auditorium, then viewing the whole hall](docs/demo.webp)
+
+## The problem
+
+Booking sites show a seat map: a grid of identical squares. It tells you where a seat is, not what you’ll see from it. So people guess. They pick the front rows because those are free and spend three hours with their head tilted back, or they pay for a “premium” seat that turns out to be far off to the side. Tickets are rarely refundable, so a bad guess costs the whole evening.
+
+## What SightLine does
+
+- **Sit in any seat before you book.** The booking page opens in a 3D model of that exact auditorium, built in metres from its screen size, row spacing, rake and aisles. The camera sits at seated eye level, so the view matches the seat.
+- **A view score for every seat.** Each of the 3,456 seats across 17 auditoriums gets a score out of 100, so you can compare seats at a glance instead of reading geometry.
+- **Help choosing.** A heatmap of view quality across the hall, side-by-side comparison of two seats, the most-booked seats marked on the map, and a “pick for me” that finds the best seats together for a group.
+- **The full booking flow.** Real movies and live shows, eight real Delhi cinemas, seat holds, test payments by UPI or card, tickets with a QR code and a picture of the view you chose, emails, accounts and an admin side for cinema staff.
 
 ![The home page: the headline over a live 3D auditorium, with the movie's real poster on the screen](docs/screenshots/home.jpg)
 
-## How it works
+## How the view score works
 
-You pick a movie or a live show, then a cinema and a showtime, then a seat. The movies are current releases and the cinemas are real ones across Delhi, from Saket to Connaught Place and Dwarka.
+The score is computed from the hall’s geometry for every seat, not hand-tagged. From the seated eye position SightLine measures three angles and combines them:
 
-![Now showing in Delhi: seven current releases with their official posters](docs/screenshots/movies.jpg)
+| Measurement | Weight | What good looks like |
+|---|---|---|
+| **Screen in view**: how many degrees of your vision the screen fills | 45% | About 50°. Much less feels distant; much more and you scan from side to side. |
+| **Angle to the centre**: how far your line to the screen’s centre swings from straight ahead | 30% | As small as possible. Seats far off to the side see a skewed picture. |
+| **Head tilt**: how far you look up to the middle of the screen | 25% | Up to 8° is effortless. Steep front rows ask for 20° or more. |
 
-![A movie's cinemas and showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg)
+Each measurement is turned into a 0 to 1 rating with a smooth falloff around its ideal (`scoreView` in [`src/lib/hall.ts`](src/lib/hall.ts)), then weighted:
 
-The booking screen opens on the view from the best free seat. Every seat has a view score, and the seats people book most are marked with a dot:
+```
+score = 100 × (0.45 × screen in view + 0.30 × angle to centre + 0.25 × head tilt)
+```
 
-![The view from seat M11 in a large-screen auditorium, with the most booked seats dotted on the seat map and listed below it](docs/screenshots/seat-view.jpg)
+The same model drives the 3D camera, so the number and the picture always agree. In a 360-seat large-screen auditorium, front-row seat C11 scores 42 (12.4 m from the screen, head tilted 20° up) and M11 scores 100 (22.4 m away, 1° up).
 
-The measurements behind the score stay out of the way until you press **Details**:
+## Product decisions
 
-![The Details pop-up for seat M11: distance to the screen, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg)
+- **One number first, measurements on request.** Most people want to know whether a seat is good, not its field of view in degrees. The seat card leads with the score and a verdict (“Best in the house”); distance and angles sit behind a Details button.
+- **Show, then select.** Tapping a seat shows its view; tapping again selects it. Trying a seat costs nothing, so comparing a few before choosing is the natural thing to do.
+- **Social proof without inventing it.** Seats booked most often in each type of auditorium get a dot, and the free ones are listed for one-tap picking.
+- **Honest content.** The movies and cinemas are real; showtimes, prices and live shows are illustrative and labelled as such. Where no free photo of a cinema’s lobby exists, a representative photo is used and marked “Representative photo”.
+- **Built for phones.** Most cinema tickets are booked on a phone, often shortly before the show, so every page is designed at 390 px first: the 3D view stacks above the seat map and every control is thumb-sized.
 
-Comedy nights, concerts, live cricket and plays run in the same auditoriums:
+## Architecture
 
-![Live shows: comedy, music, cricket screenings and theatre, each with a photo and its next show](docs/screenshots/live-shows.jpg)
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI["React + TypeScript pages"] --> Scene["Three.js hall scene"]
+    UI --> State["App state (zustand)"]
+  end
+  Shared["Shared model: halls, seats, scores, programme<br/>src/lib/hall.ts, src/data/"] -.-> UI
+  Shared -.-> API
+  UI -- "JSON over /api" --> API["Node HTTP API<br/>server/app.ts"]
+  API --> DB[("PostgreSQL or SQLite")]
+  API --> Mail["Email: SMTP or demo inbox"]
+  API --> Google["Google sign-in, OAuth with PKCE"]
+  API --> Pay["Test payment gateway"]
+```
 
-| A cinema and its auditoriums | Whole hall view |
+The browser and the server import the same TypeScript model of every hall, seat and showtime. The server never trusts a price, seat or show sent by the browser: it recomputes them from that model.
+
+## Engineering highlights
+
+- **No double-booking under load.** Held and booked seats each have a unique `(show, seat)` constraint and every write runs in a transaction, so two people racing for the last seat can’t both win. Continuing to payment holds seats for 7 minutes; payment only succeeds for seats still held.
+- **Safe retries.** Each payment carries an idempotency key, so a double click or a flaky network retry returns the first booking instead of charging twice.
+- **A programme without a schedule table.** Showtimes are generated deterministically per cinema, auditorium and day from a seeded random number generator, so every link stays valid. Admin changes (extra shows, cancellations, new titles, prices) are stored as overrides and synced to every server process.
+- **3D that stays fast.** Hundreds of seats are drawn as instanced meshes, the scene loads only when needed so the first paint never waits for Three.js, and the booked view is captured into the ticket as an image.
+- **Security basics done properly.** Passwords hashed with scrypt, sessions stored only as hashes in HttpOnly cookies, Google sign-in with PKCE, state and nonce checks, rate limiting, origin checks on every write, and a strict Content Security Policy.
+- **Accessible.** Seats can be chosen with the keyboard and are announced to screen readers, focus is always visible, and motion stops when the system asks for reduced motion.
+
+## Testing
+
+| Suite | Checks | Covers |
+|---|---|---|
+| API (`npm run test:api`) | 152 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, admin roles, schedule changes, prices, rate limits, security headers |
+| Browser (`npm run test:e2e`, Playwright) | 32 | The full journey from the home page to a paid ticket and a cancellation, the 3D view, admin pages, phone layouts, and zero errors in the browser console |
+
+The API suite runs against SQLite and PostgreSQL.
+
+## A closer look
+
+| Showtimes by cinema and auditorium | Seat details |
 |---|---|
-| ![A cinema page with its three auditoriums and today's movies](docs/screenshots/cinema.jpg) | ![The hall from above, with a live preview of the chosen seat's view](docs/screenshots/whole-hall.jpg) |
-| **Checkout** | **Ticket with the booked view** |
+| ![A movie's showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg) | ![The Details pop-up for seat M11: distance, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg) |
+| **Live shows in the same halls** | **A cinema and its auditoriums** |
+| ![Live shows: comedy, music, cricket screenings and theatre](docs/screenshots/live-shows.jpg) | ![A cinema page with its photo, lobby and auditoriums](docs/screenshots/cinema.jpg) |
+| **Checkout with test payments** | **Ticket with the booked view** |
 | ![Checkout with UPI, card and pay-at-the-cinema options](docs/screenshots/checkout.jpg) | ![Ticket with QR code, the picture of the seat view and the price breakdown](docs/screenshots/ticket.jpg) |
-
-Cinema staff get their own admin pages for sales, shows, bookings and customers:
-
-| Admin overview | Managing a cinema’s shows |
-|---|---|
+| **Admin: sales overview** | **Admin: managing a cinema’s shows** |
 | ![Admin overview with sales totals, a 14-day sales chart, top titles and cinemas](docs/screenshots/admin.jpg) | ![Admin shows page: add a show, or cancel and restore shows per auditorium](docs/screenshots/admin-shows.jpg) |
 
-On a phone the 3D view sits above the seat map:
+On a phone:
 
 <p>
   <img src="docs/screenshots/phone-home.jpg" width="250" alt="Home page on a phone" />
   <img src="docs/screenshots/phone-showtimes.jpg" width="250" alt="Showtimes on a phone" />
   <img src="docs/screenshots/phone-booking.jpg" width="250" alt="Booking page on a phone, with the 3D view above the seat map" />
 </p>
-
-## Features
-
-- **Seat preview in 3D:** a camera at seated eye level in every seat, a whole-hall view, a view-quality heatmap and a best-seats-together pick for groups of up to 8.
-- **Compare and share:** two seats side by side, or a link that opens the hall at one exact seat.
-- **Most booked seats:** marked on the map, with the ones still free listed for one-tap picking.
-- **Live shows:** stand-up comedy, concerts, live cricket screenings and plays, booked the same way as movies.
-- **Cinema pages:** a photo of each cinema, its lobby and snack counter, and a picture of every auditorium rendered from its 3D model.
-- **Real posters:** every movie shows its official theatrical poster.
-- **Admin:** a sales overview; adding, cancelling and restoring shows (cancelling refunds and emails every customer); adding new movies and live shows; setting seat prices for each auditorium type; all bookings; and customer roles.
-- **Accounts:** email and password or Google sign-in, email confirmation, password reset, a signed-in devices list and account deletion.
-- **Payments:** UPI, card and pay at the cinema, through a built-in test gateway. Tickets show the GST included.
-- **Email:** confirmation, ticket, cancellation and refund, and password reset emails.
-
-## Tech stack
-
-React, TypeScript and Vite for the site, Three.js for the halls, and a Node server with no framework on PostgreSQL or SQLite. It runs as a plain Node server, in Docker or on Vercel.
 
 ## Run it
 
@@ -70,36 +109,26 @@ npm install
 npm run dev
 ```
 
-Open [localhost:5173](http://localhost:5173). With no settings the data lives in a local SQLite file; `.env.example` lists the optional settings. To see the admin pages, choose **Sign in as the demo admin** on the sign-in page, or list your email in `ADMIN_EMAILS`.
+Open [localhost:5173](http://localhost:5173). With no settings the data lives in a local SQLite file; `.env.example` lists the optional settings (PostgreSQL, email, Google sign-in, a TMDB key for larger posters). On the sign-in page, **Continue With Demo Account** books as a customer and **Sign in as the demo admin** opens the admin pages.
 
-## Tests
+For production, `npm run build` then `npm start`, or `docker compose up`. `vercel.json` deploys the site and API to Vercel with a hosted PostgreSQL.
 
-```bash
-npm run test:api   # 152 API checks, against a server started on port 8799
-npm run test:e2e   # 31 browser checks in Chrome, with npm run dev running
-```
+## Tech stack
+
+React 19, TypeScript, Vite and Three.js in the browser; a Node HTTP server with no framework; PostgreSQL in production and SQLite for local development; Playwright for browser tests.
 
 ## Project structure
 
-- `src/three/HallScene.ts`: the 3D hall, with seat view, whole-hall view and snapshot capture.
-- `src/lib/hall.ts`: halls defined in metres, the seat layout and each seat’s view score.
-- `src/data/`: the movies and live shows, the Delhi cinemas, their photos and the generated showtimes.
-- `src/pages/`: home, movie or show, live shows, cinemas, booking, checkout, ticket, account, help and `admin/`.
-- `server/`: the API (including the admin routes), the database layer, Google sign-in, the test payment gateway and email.
+- `src/three/HallScene.ts`: the 3D hall, seat view, whole-hall view, camera flights and snapshot capture.
+- `src/lib/hall.ts`: halls defined in metres, the seat layout and every seat’s view score.
+- `src/data/`: the movies and live shows, the Delhi cinemas, photos and the generated programme.
+- `src/pages/`: home, movie, live shows, cinemas, booking, checkout, ticket, account, help and `admin/`.
+- `server/`: the API, the database layer, Google sign-in, the test payment gateway and email.
+- `scripts/api-test.mjs` and `tests/e2e/`: the two test suites.
 
-## How booking stays correct
+## Limitations and next steps
 
-The database, not the browser, decides who gets a seat:
-
-- **No double-booking.** Confirmed and held seats each have a unique `(show, seat)` constraint, and every write runs in a transaction.
-- **Hold, then pay.** Continuing to payment holds your seats for 7 minutes, and the server only charges for seats you still hold.
-- **Safe retries.** Each payment carries a one-time key, so a double click returns the first booking instead of booking twice.
-- **Server-side prices.** The total comes from the hall definition, never from the browser.
-- **Secure accounts.** Passwords are hashed with scrypt, sessions are HttpOnly cookies stored only as hashes, and sign-in attempts are rate limited.
-
-## Limitations
-
-- The movies and cinemas are real, but SightLine isn’t connected to any cinema. Showtimes, live shows, prices, seat layouts and the background crowd are illustrative.
-- Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page). No Delhi cinema has a freely licensed lobby photo, so every lobby and snack-counter photo is a representative one from another cinema, labelled as such; so are the building photos for two cinemas.
-- Movie posters are the films’ official theatrical posters, shown from Wikipedia (or from TMDB when a TMDB key is set). They belong to their studios and are only linked, not stored in this repository.
-- Payments run in test mode; a real launch would swap `server/gateway.ts` for a provider such as Razorpay.
+- SightLine isn’t connected to any cinema. Showtimes, live shows, prices, auditorium layouts and the background audience are illustrative; the three auditorium types stand in for each cinema’s own measured halls. A real launch would import each cinema’s seat plans and programme.
+- Payments run in a test gateway built to the same rules as a real one; `server/gateway.ts` is the single place to swap in a provider such as Razorpay.
+- Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page). Movie posters are the films’ official posters, linked from Wikipedia or TMDB and not stored in this repository.
+- Next: measured layouts for real auditoriums, accessibility filters (step-free seats, aisle seats), and testing whether showing the view changes which seats people book.
