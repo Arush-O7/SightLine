@@ -61,7 +61,7 @@ export default function MoviePage() {
           <div className="movie-head">
             <Poster movie={movie} eager className="movie-head-poster" />
             <div className="movie-head-info">
-              <h1 className={`movie-title ${movie.titleFont === 'serif' ? 'serif' : ''}`}>{movie.title}</h1>
+              <h1 className="movie-title">{movie.title}</h1>
               <div className="meta-row">
                 {live ? <span className="badge">{KIND_LABEL[movie.kind]}</span> : null}
                 <span>

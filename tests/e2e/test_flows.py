@@ -87,6 +87,19 @@ def run() -> None:
 
         check("home: the two-seat comparison shows both views", seat_comparison)
 
+        def how_it_works():
+            expect(page.locator(".score-factors li")).to_have_count(3)
+            tab = page.get_by_role("tab", name=re.compile("Sit in any seat"))
+            tab.click()
+            expect(tab).to_have_attribute("aria-selected", "true")
+            expect(page.locator(".steps-stage img.on")).to_have_attribute("src", re.compile("step-sit"))
+            # arrow keys move between steps, as in any tab list
+            tab.press("ArrowDown")
+            expect(page.get_by_role("tab", name=re.compile("Book and keep the view"))).to_be_focused()
+            expect(page.locator(".steps-stage img.on")).to_have_attribute("src", re.compile("step-book"))
+
+        check("home: score explainer and how-it-works steps", how_it_works)
+
         def language_filter():
             page.get_by_role("button", name="Tamil", exact=True).click()
             expect(page.locator(".movie-card")).to_have_count(1)

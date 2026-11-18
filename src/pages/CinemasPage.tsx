@@ -10,7 +10,7 @@ export default function CinemasPage() {
     <div className="container section cinemas-page">
       <div className="section-head">
         <div>
-          <h1>Cinemas in Delhi</h1>
+          <h1 className="display">Cinemas in Delhi</h1>
           <p className="muted">Pick a cinema to see what’s playing and walk its auditoriums in 3D.</p>
         </div>
       </div>

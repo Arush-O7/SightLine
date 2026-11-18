@@ -13,7 +13,7 @@ export default function EventsPage() {
     <div className="container section events-page">
       <div className="section-head">
         <div>
-          <h1>Live shows</h1>
+          <h1 className="display">Live shows</h1>
           <p className="muted">Comedy, music, cricket and theatre in the same auditoriums, with the same 3D view from every seat.</p>
         </div>
         <div className="chips" role="group" aria-label="Filter by kind of show">

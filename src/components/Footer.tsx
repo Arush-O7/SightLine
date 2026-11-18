@@ -41,6 +41,9 @@ export default function Footer() {
             <Link to="/help#terms">Terms</Link>
             <Link to="/help#privacy">Privacy</Link>
             <Link to="/credits">Photo Credits</Link>
+            <a href="https://github.com/Arush-O7/SightLine" target="_blank" rel="noreferrer">
+              Source Code
+            </a>
             {demo ? <Link to="/demo/inbox">Demo Inbox</Link> : null}
           </div>
         </nav>
