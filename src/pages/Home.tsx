@@ -2,12 +2,11 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
-import CinemaCard from '../components/CinemaCard';
 import EventCard from '../components/EventCard';
-import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
-import SeatDetails from '../components/SeatDetails';
+import SeatPicker from '../components/SeatPicker';
 import { CINEMAS } from '../data/cinemas';
+import { sized } from '../data/photos';
 import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
@@ -19,7 +18,7 @@ const HeroHall = lazy(() => import('../components/HeroHall'));
 function nextShowIn(movieId: string, hallId: string): Show | null {
   const movie = MOVIES.find((m) => m.id === movieId)!;
   const soon = Date.now() + 10 * 60 * 1000;
-  for (const day of upcomingDays(3)) {
+  for (const day of upcomingDays(4)) {
     const hit = showsFor(movie, day.key)
       .filter((g) => g.hallId === hallId)
       .flatMap((g) => g.shows)
@@ -30,61 +29,21 @@ function nextShowIn(movieId: string, hallId: string): Show | null {
   return null;
 }
 
-/** Three seats that show the range of views in a hall: the best seat, the front row and a back corner. */
-function tourSeats(layout: HallLayout, taken: Set<string>): { key: string; label: string; seat: Seat }[] {
-  const free = (row: Seat[], from: number) => row.slice(from).find((s) => !taken.has(s.id)) ?? row[from];
-  const front = layout.grid[0];
-  const back = layout.grid[layout.grid.length - 1];
+/** Four seats that show the range of views in a hall, used by the tour and the preset buttons. */
+function presetSeats(layout: HallLayout, taken: Set<string>): { label: string; seat: Seat }[] {
+  const g = layout.grid;
+  const free = (r: number, from: number) => g[r].slice(from).find((s) => !taken.has(s.id)) ?? g[r][from];
+  const middle = (r: number) => Math.floor(g[r].length / 2);
+  const front = Math.min(2, g.length - 1);
   return [
-    { key: 'best', label: 'Best Seat', seat: layout.byId.get(layout.bestSeatId)! },
-    { key: 'front', label: 'Front Row', seat: free(front, Math.floor(front.length / 2)) },
-    { key: 'back', label: 'Back Corner', seat: back[0] },
+    { label: 'Best seat', seat: layout.byId.get(layout.bestSeatId)! },
+    { label: 'Off to the side', seat: free(Math.floor(g.length * 0.55), 1) },
+    { label: 'Back row', seat: free(g.length - 1, middle(g.length - 1)) },
+    { label: 'Near the front', seat: free(front, middle(front)) },
   ];
 }
 
-function SeatDemo({ show }: { show: Show | null }) {
-  const layout = getLayout(show?.hallId ?? 'h1');
-  const samples = useMemo(() => tourSeats(layout, new Set()), [layout]);
-  const [pick, setPick] = useState('best');
-  const { seat } = samples.find((s) => s.key === pick) ?? samples[0];
-  const m = layout.metrics[seat.index];
-  return (
-    <div className="seat-demo">
-      <HallPlan layout={layout} highlight={seat.id} />
-      <div className="seat-demo-pick" role="group" aria-label="Compare three seats">
-        {samples.map((s) => (
-          <button key={s.key} type="button" className={`chip ${pick === s.key ? 'on' : ''}`} aria-pressed={pick === s.key} onClick={() => setPick(s.key)}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div className="seat-demo-card" aria-live="polite">
-        <div className="seat-demo-head">
-          <div>
-            <h3>
-              Row {seat.rowLabel}, Seat {seat.number}
-            </h3>
-            <p className="muted small">
-              {layout.config.format} auditorium · {seat.zone.name}
-            </p>
-          </div>
-          <div className="seat-demo-side">
-            <p className="seat-demo-score">
-              <b>{Math.round(m.score)}</b>
-              <span>View score</span>
-            </p>
-            <SeatDetails layout={layout} seat={seat} />
-          </div>
-        </div>
-        {show ? (
-          <Link className="btn btn-secondary" to={`/book/${show.id}?seat=${seat.id}`} onMouseEnter={warmBooking} onFocus={warmBooking}>
-            Sit in {seat.id} in 3D
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+const tilt = (deg: number) => `${Math.abs(Math.round(deg))}° ${deg >= 0 ? 'up' : 'down'}`;
 
 export default function Home() {
   useTitle();
@@ -111,107 +70,175 @@ export default function Home() {
   const heroShow = useMemo(() => nextShowIn(featured.id, 'h2'), [featured.id]);
   const heroLayout = getLayout(heroShow?.hallId ?? 'h2');
   const heroTaken = useMemo(() => (heroShow ? crowdFor(heroShow, heroLayout) : new Set<string>()), [heroShow, heroLayout]);
-  const heroTour = useMemo(() => tourSeats(heroLayout, heroTaken).map((t) => t.seat), [heroLayout, heroTaken]);
+  const presets = useMemo(() => presetSeats(heroLayout, heroTaken), [heroLayout, heroTaken]);
+  const tour = useMemo(() => presets.map((p) => p.seat), [presets]);
   const heroVenue = heroShow ? venueOf(heroShow) : null;
-  const [liveSeat, setLiveSeat] = useState<Seat | null>(null);
+  const [seat, setSeat] = useState<Seat>(() => presets[0].seat);
+  const [pick, setPick] = useState<Seat | null>(null);
   const [live, setLive] = useState(false);
-  const demoShow = useMemo(() => nextShowIn('drishyam-the-conclusion', 'h1'), []);
+  const m = heroLayout.metrics[seat.index];
 
-  const cinemaCount = (movieId: string) =>
-    new Set(showsFor(MOVIES.find((m) => m.id === movieId)!, today).map((g) => g.cinemaId)).size;
+  // the two seats compared further down, in the same large-screen auditorium
+  const big = getLayout('h2');
+  const front = big.byId.get('C11')!;
+  const best = big.byId.get(big.bestSeatId)!;
+  const fm = big.metrics[front.index];
+  const bm = big.metrics[best.index];
+
+  const cinemaCount = (movieId: string) => new Set(showsFor(MOVIES.find((x) => x.id === movieId)!, today).map((g) => g.cinemaId)).size;
   const needle = query.trim().toLowerCase();
   const list = MOVIES.filter(
-    (m) =>
-      (lang === 'All' || m.language === lang) &&
-      (!needle || [m.title, m.director, ...m.cast, ...m.genres].some((f) => f.toLowerCase().includes(needle))),
+    (x) =>
+      (lang === 'All' || x.language === lang) &&
+      (!needle || [x.title, x.director, ...x.cast, ...x.genres].some((f) => f.toLowerCase().includes(needle))),
   );
 
   return (
     <>
-      <section className="home-hero" aria-labelledby="home-title">
-        <div className="home-hero-stage">
-          <Backdrop movie={featured} priority className={`home-hero-still ${live ? 'off' : ''}`} />
+      <section className="hx" aria-labelledby="home-title">
+        <div className="hx-stage">
+          <Backdrop movie={featured} priority className={`hx-still ${live ? 'off' : ''}`} />
           <Suspense fallback={null}>
-            <HeroHall layout={heroLayout} movie={featured} occupied={heroTaken} tour={heroTour} onSeat={setLiveSeat} onReady={() => setLive(true)} />
+            <HeroHall
+              layout={heroLayout}
+              movie={featured}
+              occupied={heroTaken}
+              tour={tour}
+              pick={pick}
+              onSeat={setSeat}
+              onReady={() => setLive(true)}
+            />
           </Suspense>
         </div>
-        <div className="home-hero-scrim" />
-        <div className="container home-hero-copy">
-          <h1 id="home-title">See your seat before you book it</h1>
-          <p className="home-hero-lede">
-            Every cinema here is rebuilt in 3D. Pick a movie or a live show, pick a cinema in Delhi, then sit in any seat and see the
-            stage from there.
-          </p>
-          <div className="home-hero-cta">
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => moviesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-              Browse Movies
-            </button>
-            <Link className="btn btn-glass btn-lg" to="/cinemas">
-              Explore Cinemas
-            </Link>
-          </div>
-          <p className="home-hero-facts">
-            {MOVIES.length} movies · {EVENTS.length} live shows · {CINEMAS.length} cinemas in Delhi
-          </p>
-        </div>
-        {heroVenue && heroShow ? (
-          <div className={`home-hero-live ${live ? 'on' : ''}`}>
-            <Link to={`/movie/${featured.id}`} className="home-hero-live-poster" aria-label={`${featured.title}: showtimes`}>
-              <Poster movie={featured} eager />
-            </Link>
-            <div className="home-hero-live-text" aria-live="polite">
-              <span className="home-hero-live-label">
-                <span className="home-hero-live-dot" aria-hidden="true" /> Live 3D preview
-              </span>
-              <b className="home-hero-live-title">{featured.title}</b>
-              <span>
-                {liveSeat ? (
-                  <>
-                    Row {liveSeat.rowLabel}, Seat {liveSeat.number} · view score <b>{Math.round(heroLayout.metrics[liveSeat.index].score)}</b>
-                  </>
-                ) : (
-                  'Whole hall'
-                )}
-              </span>
-              <span className="home-hero-live-venue">
-                {heroVenue.cinema.name} · {heroVenue.screen.name}
-              </span>
+        <div className="hx-scrim" />
+
+        <div className="container hx-grid">
+          <div className="hx-copy">
+            <h1 id="home-title" className="hx-title">
+              <span>Try any seat</span> <span>before you book</span>
+            </h1>
+            <p className="hx-lede">
+              Every auditorium in Delhi’s cinemas, rebuilt in 3D to scale. Tap a seat on the plan and the screen moves to where you’d see it
+              from, then book the one you like.
+            </p>
+            <div className="hx-cta">
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => moviesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Browse Movies
+              </button>
+              <Link className="btn btn-glass btn-lg" to="/cinemas">
+                Explore Cinemas
+              </Link>
             </div>
           </div>
-        ) : null}
+
+          {heroShow && heroVenue ? (
+            <aside className={`hx-picker home-hero-live ${live ? 'on' : ''}`} aria-label="Try a seat">
+              <div className="hx-picker-head">
+                <Link to={`/movie/${featured.id}`} className="hx-picker-poster" tabIndex={-1} aria-hidden="true">
+                  <Poster movie={featured} eager />
+                </Link>
+                <div>
+                  <p className="hx-picker-title">{featured.title}</p>
+                  <p className="hx-picker-venue">
+                    {heroVenue.cinema.name}, {heroVenue.screen.name}
+                    <br />
+                    {heroShow.dateKey === today ? 'Today' : formatDate(heroShow.start)} at {formatTime(heroShow.start)}
+                  </p>
+                </div>
+              </div>
+
+              <SeatPicker
+                layout={heroLayout}
+                taken={heroTaken}
+                current={seat.id}
+                onPick={(s) => {
+                  setPick({ ...s });
+                  setSeat(s);
+                }}
+              />
+
+              <div className="hx-readout" aria-live="polite">
+                <div>
+                  <p className="hx-seat">
+                    Row {seat.rowLabel}, Seat {seat.number}
+                  </p>
+                  <p className="hx-verdict">{m.label}</p>
+                </div>
+                <p className="hx-score">
+                  <b>{Math.round(m.score)}</b>
+                  <span>view score</span>
+                </p>
+              </div>
+
+              <div className="hx-presets" role="group" aria-label="Jump to a seat">
+                {presets.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className={`chip ${seat.id === p.seat.id ? 'on' : ''}`}
+                    aria-pressed={seat.id === p.seat.id}
+                    onClick={() => {
+                      setPick({ ...p.seat });
+                      setSeat(p.seat);
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <Link
+                className="btn btn-primary btn-block"
+                to={`/book/${heroShow.id}?seat=${seat.id}`}
+                onMouseEnter={warmBooking}
+                onFocus={warmBooking}
+              >
+                Book Row {seat.rowLabel}, Seat {seat.number}
+              </Link>
+            </aside>
+          ) : null}
+        </div>
       </section>
 
-      <section className="container section" ref={moviesRef} id="movies">
-        <div className="section-head">
+      <section className="container hs" ref={moviesRef} id="movies">
+        <div className="hs-head">
           <div>
-            <h2>Now showing in Delhi</h2>
-            <p className="muted">Pick a movie to see where and when it’s playing.</p>
+            <h2 className="display">Now showing</h2>
+            <p className="muted">
+              {MOVIES.length} movies in {CINEMAS.length} Delhi cinemas this week. Pick one to see where and when it’s playing.
+            </p>
           </div>
-          <label className="search">
-            <Search size={15} />
-            <span className="sr-only">Search movies</span>
-            <input
-              type="search"
-              name="q"
-              value={query}
-              onChange={(e) => update('q', e.target.value || null)}
-              placeholder="Search movies, cast, director…"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          <div className="chips" role="group" aria-label="Filter by language">
-            {['All', ...languages()].map((l) => (
-              <button key={l} type="button" aria-pressed={lang === l} className={`chip ${lang === l ? 'on' : ''}`} onClick={() => update('lang', l === 'All' ? null : l)}>
-                {l}
-              </button>
-            ))}
+          <div className="hs-tools">
+            <label className="search">
+              <Search size={15} />
+              <span className="sr-only">Search movies</span>
+              <input
+                type="search"
+                name="q"
+                value={query}
+                onChange={(e) => update('q', e.target.value || null)}
+                placeholder="Search movies, cast, director…"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <div className="chips" role="group" aria-label="Filter by language">
+              {['All', ...languages()].map((l) => (
+                <button key={l} type="button" aria-pressed={lang === l} className={`chip ${lang === l ? 'on' : ''}`} onClick={() => update('lang', l === 'All' ? null : l)}>
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {list.length ? (
           <div className="movie-grid">
-            {list.map((m) => (
-              <MovieCard key={m.id} movie={m} cinemas={cinemaCount(m.id)} />
+            {list.map((x) => (
+              <MovieCard key={x.id} movie={x} cinemas={cinemaCount(x.id)} />
             ))}
           </div>
         ) : (
@@ -224,11 +251,49 @@ export default function Home() {
         )}
       </section>
 
-      <section className="container section" id="live">
-        <div className="section-head">
+      <section className="container hs" aria-labelledby="compare-title">
+        <div className="hs-head">
           <div>
-            <h2>Live in the auditorium</h2>
-            <p className="muted">Comedy, concerts, cricket on the big screen and theatre, in the same halls.</p>
+            <h2 id="compare-title" className="display">
+              Same hall, two seats
+            </h2>
+            <p className="muted hs-lede">
+              A seat map tells you where you’ll sit. SightLine shows what you’ll see from there, from a camera placed at seated eye level in a
+              hall built to scale.
+            </p>
+          </div>
+        </div>
+        <div className="cmp">
+          <figure className="cmp-shot">
+            <img src="/home/front-row.jpg" width={1680} height={880} loading="lazy" decoding="async" alt="The screen seen from front-row seat C11: it overflows the view and sits far above eye level" />
+            <figcaption>
+              <span className="cmp-score">{Math.round(fm.score)}</span>
+              <span>
+                <b>Row C, Seat 11</b>
+                {fm.distance.toFixed(1)} m from the screen, head tilted {tilt(fm.elevation)}
+              </span>
+            </figcaption>
+          </figure>
+          <figure className="cmp-shot">
+            <img src="/home/best-seat.jpg" width={1680} height={880} loading="lazy" decoding="async" alt="The screen seen from seat M11: the whole picture fits the view at eye level" />
+            <figcaption>
+              <span className="cmp-score is-best">{Math.round(bm.score)}</span>
+              <span>
+                <b>
+                  Row {best.rowLabel}, Seat {best.number}
+                </b>
+                {bm.distance.toFixed(1)} m from the screen, head tilted {tilt(bm.elevation)}
+              </span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section className="container hs" id="live">
+        <div className="hs-head">
+          <div>
+            <h2 className="display">Live on the same screens</h2>
+            <p className="muted">Stand-up, concerts, cricket on the big screen and theatre, with a 3D view from every seat.</p>
           </div>
           <Link to="/events" className="btn btn-secondary">
             All Live Shows
@@ -242,48 +307,31 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="container section">
-        <div className="how">
-          <div className="how-steps">
-            <h2>Know the view before you pay</h2>
-            <p className="muted how-intro">
-              A seat map tells you where you’ll sit. SightLine shows you what you’ll see, because every auditorium is modelled to scale with a
-              camera at seated eye level.
-            </p>
-            <ol className="how-list">
-              <li>
-                <h3>Pick a movie</h3>
-                <p className="muted">See every cinema and showtime for it across Delhi.</p>
-              </li>
-              <li>
-                <h3>Choose a cinema and time</h3>
-                <p className="muted">Standard, large-screen or recliner auditoriums, each built in 3D.</p>
-              </li>
-              <li>
-                <h3>Sit in any seat</h3>
-                <p className="muted">Look around from eye level, compare seats by view score, then book.</p>
-              </li>
-            </ol>
-          </div>
-          <SeatDemo show={demoShow} />
-        </div>
-      </section>
-
-      <section className="container section" id="cinemas">
-        <div className="section-head">
+      <section className="container hs" id="cinemas">
+        <div className="hs-head">
           <div>
-            <h2>Cinemas in Delhi</h2>
-            <p className="muted">From Saket to Connaught Place and Dwarka, every auditorium rebuilt in 3D.</p>
+            <h2 className="display">Eight cinemas across Delhi</h2>
+            <p className="muted">From Saket and Vasant Kunj to Connaught Place, Daryaganj and Dwarka.</p>
           </div>
           <Link to="/cinemas" className="btn btn-secondary">
             All Cinemas
           </Link>
         </div>
-        <div className="cinema-grid">
-          {CINEMAS.slice(0, 6).map((c) => (
-            <CinemaCard key={c.id} cinema={c} dayKey={today} />
+        <ul className="ct-grid">
+          {CINEMAS.map((c) => (
+            <li key={c.id}>
+              <Link to={`/cinema/${c.id}`} className="ct">
+                <img src={sized(c.photo, 500)} width={500} height={375} loading="lazy" decoding="async" alt="" />
+                {c.photo.note?.startsWith('Representative') ? <span className="photo-tag">Representative photo</span> : null}
+                <span className="ct-text">
+                  <b>{c.name}</b>
+                  <span>{c.area}</span>
+                </span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
+
         {heroShow ? (
           <div className="home-close">
             <Backdrop movie={featured} className="home-close-bg" />
@@ -292,9 +340,10 @@ export default function Home() {
               <Poster movie={featured} />
             </Link>
             <div className="home-close-copy">
-              <h2>{featured.title}</h2>
+              <h2 className="display">{featured.title}</h2>
               <p>
-                Playing next at {heroVenue?.cinema.name}, {heroShow.dateKey === today ? 'today' : formatDate(heroShow.start)} at {formatTime(heroShow.start)}. Pick your seat in 3D before you pay.
+                Playing next at {heroVenue?.cinema.name}, {heroShow.dateKey === today ? 'today' : formatDate(heroShow.start)} at{' '}
+                {formatTime(heroShow.start)}. Pick your seat in 3D before you pay.
               </p>
               <div className="home-close-cta">
                 <Link className="btn btn-primary btn-lg" to={`/movie/${featured.id}`}>

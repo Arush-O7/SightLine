@@ -66,11 +66,11 @@ def run() -> None:
 
         def home():
             go(page, "/")
-            expect(page.locator("h1")).to_have_text("See your seat before you book it")
-            expect(page.locator(".home-hero-facts")).to_contain_text("cinemas in Delhi")
+            expect(page.locator("h1")).to_have_text("Try any seat before you book")
+            expect(page.locator(".hx-picker")).to_contain_text("Book Row")
             page.screenshot(path=SHOTS / "01-home.png")
 
-        check("home: headline and city facts", home)
+        check("home: headline and the seat picker", home)
 
         def live_hall():
             # the 3D hall loads after the page and starts its tour
@@ -79,18 +79,22 @@ def run() -> None:
 
         check("home: the live 3D hall starts", live_hall)
 
-        def seat_demo():
-            score = page.locator(".seat-demo-score b")
+        def seat_picker():
+            score = page.locator(".hx-score b")
+            page.get_by_role("button", name="Best seat").click()
             best = score.inner_text()
-            page.get_by_role("button", name="Back Corner").click()
-            expect(page.get_by_role("button", name="Back Corner")).to_have_attribute("aria-pressed", "true")
-            assert score.inner_text() != best, "the score did not change for another seat"
-            expect(page.locator(".seat-demo .hall-plan rect.on")).to_have_count(1)
-            page.locator(".seat-demo").get_by_role("button", name="Details").click()
-            expect(page.locator(".seat-demo .seat-details-pop")).to_contain_text("field of view")
-            page.locator(".seat-demo").get_by_role("button", name="Close details").click()
+            page.get_by_role("button", name="Near the front").click()
+            expect(page.get_by_role("button", name="Near the front")).to_have_attribute("aria-pressed", "true")
+            expect(score).not_to_have_text(best)
+            expect(page.locator(".seat-picker rect.on")).to_have_count(1)
+            # tapping a seat on the plan picks it, and the booking link follows
+            seat = page.locator(".seat-picker rect.free").nth(40)
+            seat_id = seat.get_attribute("data-seat")
+            seat.click()
+            expect(page.locator(".seat-picker rect.on")).to_have_attribute("data-seat", seat_id)
+            expect(page.locator(".hx-picker a.btn-primary")).to_have_attribute("href", re.compile(f"seat={seat_id}$"))
 
-        check("home: seat demo switches seats", seat_demo)
+        check("home: the seat picker moves between seats", seat_picker)
 
         def language_filter():
             page.get_by_role("button", name="Tamil", exact=True).click()

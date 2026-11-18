@@ -1009,3 +1009,85 @@ export function paintPhoto(canvas: HTMLCanvasElement, url: string): Promise<bool
     img.src = url;
   });
 }
+
+/**
+ * The pre-show slide a cinema puts on screen before a movie: the poster sharp on the left
+ * over a blurred, darkened copy of itself, with "Now showing" and the title beside it.
+ * Resolves false when the poster can't be used (failed to load, or served without CORS).
+ */
+export function paintPreshow(
+  canvas: HTMLCanvasElement,
+  subject: { title: string; language: string; runtime: number },
+  posterUrl: string,
+  /** 'poster-only' puts the poster right of centre with no words, for the home page where the headline covers the left */
+  layout: 'slide' | 'poster-only' = 'slide',
+  /** where the poster's centre sits across the screen, for 'poster-only' */
+  posterX = 0.66,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.onerror = () => resolve(false);
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx || !img.naturalWidth) return resolve(false);
+      const W = canvas.width;
+      const H = canvas.height;
+      // blurred fill
+      const cover = Math.max((W + 160) / img.naturalWidth, (H + 160) / img.naturalHeight);
+      ctx.save();
+      ctx.fillStyle = '#0b0b0c';
+      ctx.fillRect(0, 0, W, H);
+      ctx.filter = 'blur(40px) saturate(1.3) brightness(0.45)';
+      ctx.drawImage(img, (W - img.naturalWidth * cover) / 2, (H - img.naturalHeight * cover) / 2, img.naturalWidth * cover, img.naturalHeight * cover);
+      ctx.restore();
+      const shade = ctx.createLinearGradient(0, 0, W, 0);
+      shade.addColorStop(0, 'rgba(11, 11, 12, 0.1)');
+      shade.addColorStop(1, 'rgba(11, 11, 12, 0.55)');
+      ctx.fillStyle = shade;
+      ctx.fillRect(0, 0, W, H);
+      // the poster
+      const ph = H * 0.8;
+      const pw = ph * (img.naturalWidth / img.naturalHeight);
+      const px = layout === 'poster-only' ? W * posterX - pw / 2 : W * 0.1;
+      const py = (H - ph) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, H * 0.02);
+      ctx.clip();
+      ctx.drawImage(img, px, py, pw, ph);
+      ctx.restore();
+      if (layout === 'poster-only') return resolve(true);
+      // the words
+      const x = px + pw + W * 0.06;
+      const maxW = W - x - W * 0.07;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#e3b873';
+      ctx.font = `600 ${Math.round(H * 0.055)}px "Geist Variable", Geist, system-ui, sans-serif`;
+      ctx.fillText('Now showing', x, H * 0.36);
+      ctx.fillStyle = '#ecebe7';
+      const size = Math.round(H * 0.12);
+      ctx.font = `600 ${size}px "Geist Variable", Geist, system-ui, sans-serif`;
+      const words = subject.title.split(' ');
+      const lines: string[] = [];
+      let line = '';
+      for (const w of words) {
+        const next = line ? `${line} ${w}` : w;
+        if (ctx.measureText(next).width > maxW && line) {
+          lines.push(line);
+          line = w;
+        } else line = next;
+      }
+      lines.push(line);
+      lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, x, H * 0.36 + size * 1.15 * (i + 1)));
+      const h = Math.floor(subject.runtime / 60);
+      const m = subject.runtime % 60;
+      ctx.fillStyle = 'rgba(236, 235, 231, 0.72)';
+      ctx.font = `500 ${Math.round(H * 0.05)}px "Geist Variable", Geist, system-ui, sans-serif`;
+      ctx.fillText(`${subject.language} · ${h}h ${String(m).padStart(2, '0')}m · In cinemas across Delhi`, x, H * 0.36 + size * 1.15 * Math.min(lines.length, 3) + H * 0.1);
+      resolve(true);
+    };
+    img.src = posterUrl;
+  });
+}

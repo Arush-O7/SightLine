@@ -672,7 +672,8 @@ export class HallScene {
     return this.mode;
   }
 
-  enterSeatView(seatId: string) {
+  /** Sits in a seat. `glide` sets how long a seat-to-seat move takes, for slower, cinematic tours. */
+  enterSeatView(seatId: string, glide?: number) {
     const seat = this.layout.byId.get(seatId);
     if (!seat) return;
     const hop = this.mode === 'seat';
@@ -690,7 +691,7 @@ export class HallScene {
     this.baseYaw = pose.yaw;
     this.basePitch = pose.pitch;
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.pitch, pose.yaw, 0, 'YXZ'));
-    this.startFlight(pose.eye, q, this.seatFov, hop ? 0.55 : 1.5, hop ? 0.0 : 0);
+    this.startFlight(pose.eye, q, this.seatFov, hop ? (glide ?? 0.55) : 1.5, 0);
     this.marker.visible = false;
     this.setHover(null);
     this.renderer.domElement.style.cursor = 'grab';

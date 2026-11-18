@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { HallScene, type LightMode, type ViewMode } from '../three/HallScene';
-import { paintArt, paintPhoto } from '../lib/art';
+import { paintArt, paintPhoto, paintPreshow } from '../lib/art';
 import { screenPhoto } from '../lib/screenPhoto';
 import type { HallLayout, Seat } from '../lib/hall';
 import { money, type Movie } from '../data/movies';
@@ -74,7 +74,9 @@ const Hall3D = forwardRef<Hall3DHandle, Props>(function Hall3D(props, ref) {
       return;
     }
     const photo = screenPhoto(movie);
+    // a wide photo fills the screen; a movie with only a poster gets a pre-show slide
     if (photo) void paintPhoto(art, photo).then((ok) => ok && live && scene.refreshScreen());
+    else if (movie.poster) void paintPreshow(art, movie, movie.poster.src).then((ok) => ok && live && scene.refreshScreen());
     sceneRef.current = scene;
     setReady(true);
     // open straight into the seat the page is focused on, otherwise the overview
