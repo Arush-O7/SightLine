@@ -186,11 +186,15 @@ A warm-neutral dark palette with one accent. Colour belongs to the content.
 
 ## Typography
 
-**Display, Body and Label Font:** Geist Variable (with system-ui fallback)
+**Marquee Font:** Big Shoulders Display Variable, weight 800, always in capitals. It is the tall condensed lettering of a cinema front (Delite, Regal, a PVR facade), used only where a cinema would put its sign: the logo wordmark, the home page headline and section titles, the seat name and score in the home seat picker, cinema names on photo tiles, and the closing band's title.
 
-**Character:** One neutral grotesque at a few weights. Large type is set tight and heavy; everything else is small, regular and calm. Bebas Neue and Playfair Display exist only inside generated poster artwork, never in the interface.
+**Body and Label Font:** Geist Variable (with system-ui fallback), for everything you read or operate.
+
+**Character:** Two clearly different voices: marquee capitals for the few words a cinema would light up, and one calm grotesque for the rest. The marquee face never sets a sentence, a button or a form. Bebas Neue and Playfair Display exist only inside generated poster artwork, never in the interface.
 
 ### Hierarchy
+- **Marquee Hero** (Big Shoulders 800, capitals, `clamp(76px, 10.4vw, 172px)`, 0.84, +0.005em): the home page headline, "Try any seat before you book", one line per phrase.
+- **Marquee Title** (Big Shoulders 800, capitals, `clamp(44px, 5.4vw, 76px)`, 0.92, +0.01em): home page section titles ("Now showing", "Same hall, two seats") and the closing band's movie title.
 - **Display** (600, `clamp(44px, 6.4vw, 88px)`, 0.98, -0.04em): the film title on a film's page.
 - **Hero** (600, `clamp(40px, 5vw, 64px)`, 1.02, -0.04em): the home page's one-sentence product line ("Cinema tickets with the view from your seat"). A full sentence, so it sits a step below Display.
 - **Statement** (600, `clamp(32px, 4vw, 48px)`, 1.12, -0.04em): a single product statement in a marketing band, such as "See it before you seat it." At most one per page.
@@ -230,11 +234,11 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ## Logo
 
-**The mark** draws the product's one idea: a curved cinema screen at the top, the two sightlines from your seat to its edges with the field of view between them, and the seat itself as a small rounded square in Tungsten, the colour reserved for the visitor's chosen seat. It is built on a 64-unit grid: the screen is a 6-unit Paper stroke, the sightlines 3 units at 70% opacity, the field of view a flat 18% fill. No gradient, no glow.
+**The mark** is an eye built from a cinema: the upper lid is the curved screen, the lower lid is a row of seats, and the pupil is your seat, a small cinema-seat shape (backrest and cushion) in Tungsten, the colour reserved for the visitor's chosen seat. It says sight, screen and seat at once, and at 16px it still reads as an eye with a gold centre. It is built on a 64-unit grid: the screen lid is a 7-unit Paper stroke, the seat row a 5-unit stroke at 42% opacity, and the two lids stay separate strokes so the screen and the seats never merge into a generic eye outline. No gradient, no glow.
 
-**The wordmark** is "SightLine" in Geist 600, mixed case, -0.02em tracking, set to the right of the mark with a gap of about a third of the mark's width. Never all caps, never letter-spaced.
+**The wordmark** is "SightLine" in Geist 600, mixed case, -0.03em tracking, set to the right of the mark with a gap of about a quarter of the mark's width. The mark is shown at 30px beside an 18px wordmark in the navigation. Never all caps, never letter-spaced.
 
-**Files** (`public/brand/`): the mark for dark backgrounds (Paper lines), the mark for light backgrounds (Ink lines), and the app icon (the mark at 60% inside a full-bleed Ink square, so phone masks never cut it). The browser favicon is the mark on a rounded Ink tile; `og-image.png` is the 1200 × 630 link preview. Keep at least a quarter of the mark's width clear around it, and never show it smaller than 16px.
+**Files** (`public/brand/`): the mark for dark backgrounds (Paper lines), the mark for light backgrounds (Ink lines), and the app icon (the mark at 70% inside a full-bleed Ink square, so phone masks never cut it). The browser favicon is the mark at 82% on a rounded Ink tile; the email header uses the same tile as a 96px PNG; `og-image.png` is the 1200 x 630 link preview: the lockup and headline over a render of the large-screen auditorium. Keep at least a quarter of the mark's width clear around it, and never show it smaller than 16px.
 
 ## Components
 
@@ -294,9 +298,17 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - Translucent pills floating over the 3D view: a two-option view switch top left, icon tools top right, a caption bottom left naming the seat, a compact four-way seat-hop pad bottom right.
 
 ### Home Hero
-- The live 3D auditorium fills the first screen: a large-screen hall playing the lead movie, which flies into a seat, holds it, pulls back to the whole hall and moves on to the next seat. The movie's backdrop sits behind it as a still until the 3D is ready, and stays when WebGL is missing; under reduced motion the hall holds one seat view.
-- Over it, bottom-left: the product line (h1, Hero size), one sentence on how the site works, Browse Movies (Primary) and Explore Cinemas (Glass), then a Muted facts line. Bottom-right, a translucent card shows the lead movie's poster beside "Live 3D preview" (with an Available dot), the title, the current seat and its view score, and the cinema and auditorium; it slides up once the hall is ready. Below the hero, the movies sit in one row of seven posters on wide screens (four, three, then two columns as the screen narrows).
-- The page ends on a closing band: a rounded card with the lead movie's blurred poster behind a left-to-right scrim, the sharp poster, its title at Statement size, when and where it plays next, and Book Tickets with Browse Live Shows. A scrim keeps the copy legible over the hall.
+- The live 3D hall fills the first screen, playing the lead movie with its real poster centred on the screen. The camera flies in once, then glides from seat to seat until the visitor picks one.
+- Left: the Marquee Hero headline, one sentence on how it works, Browse Movies (Primary) and Explore Cinemas (Glass).
+- Right: the **Seat Picker**, a translucent panel that is the page's one bold idea. It holds the show (poster thumbnail, title, cinema and auditorium, day and time), a pocket seat plan drawn from the hall's real geometry (free seats in Seat Free, taken seats outlined, the current seat in Tungsten; tapping a free seat moves the 3D camera there), the seat name in marquee capitals with its verdict in Tungsten, the view score as a large marquee number, four preset pills (Best seat, Off to the side, Back row, Near the front) that give keyboard users the same choice, and "Book Row M, Seat 11" as the Primary button.
+- The headline, sentence and panel rise in once on load (reduced motion: no movement). A scrim keeps the copy readable over the hall.
+- Under 860px the hall gets its own frame at the top, about half the screen tall, and the headline overlaps its lower edge; the panel follows the buttons.
+
+### Seat Comparison
+- "Same hall, two seats": two real renders of the same large-screen auditorium, side by side (stacked on phones), from the front row and from the best seat. Over the bottom of each, on a dark fade: the view score as a marquee number (Paper for the front row, Tungsten for the best seat), the seat name, and its distance and head tilt. No caption under the images.
+
+### Cinema Tiles
+- On the home page all eight cinemas sit in a 4 by 2 grid of 4:3 photo tiles (2 columns on tablets and phones), each a link: the photo, a dark fade at the bottom, the name in marquee capitals and the area beneath. Stand-in photos keep their "Representative photo" pill. The photo zooms 4% on hover.
 
 ### Movie Card
 - The poster at 2:3 with a small "New this week" tag in its corner for releases under a week old, then the title at Title size and two Muted lines: language and two genres, then runtime and how many cinemas show it today. The whole card links to the movie.
@@ -320,12 +332,6 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - On a movie or live show page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures and a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
 - Above the cards, the day tiles and a pill filter for auditorium type (All, Large screen, Recliner, Standard). The chosen day and filter live in the URL.
 - On a cinema page the same rows sit under each movie's poster and title instead.
-
-### Hall Plan
-- A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, accessible seats with the Seat Accessible outline, and at most one seat in Tungsten. Used on the home page's seat demo, on each cinema card and on a cinema's auditorium cards, always beside text that states the same facts.
-
-### Seat Demo
-- On the home page: a Surface panel with a Hall Plan, three pills (Front Row, Best Seat, Back Corner) and, under a hairline, the chosen seat's name, its view score in tabular Headline size with a Details pill beneath it, and a link into that seat in 3D.
 
 ### Ticket
 - An 18px-radius Surface card split by a dashed divider into details and a stub with a white-backed QR code and the booking reference in spaced capitals. Prints as black on white.

@@ -2,7 +2,7 @@
 
 SightLine is a booking site for movies and live shows in Delhi’s cinemas. You can sit in any seat of a true-to-scale 3D auditorium and see the screen or stage from there before you book it.
 
-![The home page: a live 3D auditorium touring from seat to seat behind the headline](docs/screenshots/home.jpg)
+![The home page: a live 3D auditorium behind the headline, with a seat plan you can tap to move the camera to any seat](docs/screenshots/home.jpg)
 
 ## How it works
 
