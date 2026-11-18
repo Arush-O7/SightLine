@@ -2,14 +2,16 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Ticket } from 'lucide-react';
 import { useStore } from '../lib/store';
 
-/** The SightLine mark: the curved screen, the two sightlines to it, and your seat in Tungsten. */
+/**
+ * The SightLine mark: a curved cinema screen seen in perspective, the way it looks from one
+ * particular seat, with that seat in Tungsten beneath the screen's near edge.
+ */
 export function LogoMark({ size = 26 }: { size?: number }) {
   return (
     <svg className="logo-mark" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" focusable="false">
-      <path d="M8 15Q32 6 56 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-      <path d="M12 22Q32 15.5 52 22L37.5 43H26.5Z" fill="currentColor" fillOpacity=".18" />
-      <path d="M12.5 22.5 26.5 42M51.5 22.5 37.5 42" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeOpacity=".7" />
-      <rect x="23.5" y="44" width="17" height="13" rx="4" fill="var(--accent)" />
+      <path d="M8 17C24 13 40 10 56 8V40C40 38 24 36 8 33Z" fill="currentColor" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M34 48a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5v8H34Z" fill="var(--accent)" />
+      <rect x="30" y="52" width="28" height="10" rx="4.5" fill="var(--accent)" />
     </svg>
   );
 }

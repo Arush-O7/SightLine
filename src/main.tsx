@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import '@fontsource-variable/geist';
+import '@fontsource-variable/big-shoulders-display';
 import '@fontsource/bebas-neue';
 import '@fontsource-variable/playfair-display';
 import '@fontsource-variable/playfair-display/wght-italic.css';

@@ -17,6 +17,7 @@
     "test:e2e:setup": "python3 -m venv .venv && .venv/bin/pip install -r tests/e2e/requirements.txt"
   },
   "dependencies": {
+    "@fontsource-variable/big-shoulders-display": "^5.2.5",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/playfair-display": "^5.3.0",
     "@fontsource/bebas-neue": "^5.3.0",
