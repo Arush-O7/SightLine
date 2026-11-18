@@ -301,10 +301,21 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - The poster at 2:3 with a small "New this week" tag in its corner for releases under a week old, then the title at Title size and two Muted lines: language and two genres, then runtime and how many cinemas show it today. The whole card links to the movie.
 
 ### Cinema Card
-- A Surface card linking to the cinema: a Hall Plan of its biggest auditorium, the cinema name at Title size, the area with a small map pin, its auditorium formats as Status Tags, and a hairline footer with today's movie and screen counts.
+- A Surface card linking to the cinema: a 5:3 photo of the building (a representative photo carries a small translucent "Representative photo" pill), the cinema name at Title size, the area with a small map pin, its auditorium formats as Status Tags, and a hairline footer with today's title and screen counts. The photo zooms 3% on hover.
+
+### Cinema Hero
+- The cinema page opens on its photo at 21:8 in a rounded frame, with a bottom scrim, the name at Statement size and the area and chain beneath. A small translucent pill top-right credits the photographer and licence and links to Photo Credits.
+- Below it, one card per auditorium with a render from that auditorium's own 3D model, seen from a back-row seat with the house lights up. Never a seat plan here.
+
+### Event Card
+- A live show: a 16:10 photo with the kind (Comedy, Music, Sports, Theatre) in a translucent pill top-left, then the title at Title size, the tagline in Muted, when and where it plays next, and the lowest price. Same Surface card, hover lift and photo zoom as the Cinema Card.
+
+### Admin
+- A plain working surface: the page title and a pill tab bar (Overview, Shows, Bookings, Customers), then Surface panels. Overview leads with six stat tiles (value at Headline size above a Muted label), a single-series bar chart of the last 14 days in Muted bars that turn Paper on hover with a tooltip, two ranked lists with thin Muted bars, and the latest bookings.
+- Tables use Faint 12px headers, hairline rows, tabular figures right-aligned, and a Muted sub-line under each primary value. Destructive actions take two steps: a Secondary "Cancel", then a Danger confirmation beside a Text "Keep".
 
 ### Showtimes
-- On a movie page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures and a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
+- On a movie or live show page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures and a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
 - Above the cards, the day tiles and a pill filter for auditorium type (All, Large screen, Recliner, Standard). The chosen day and filter live in the URL.
 - On a cinema page the same rows sit under each movie's poster and title instead.
 

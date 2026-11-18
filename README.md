@@ -1,12 +1,12 @@
 # SightLine
 
-SightLine is a cinema booking site for Delhi that lets you sit in any seat of a true-to-scale 3D auditorium and see the screen from there before you book it.
+SightLine is a booking site for movies and live shows in Delhi’s cinemas. You can sit in any seat of a true-to-scale 3D auditorium and see the screen or stage from there before you book it.
 
 ![The home page: a live 3D auditorium touring from seat to seat behind the headline](docs/screenshots/home.jpg)
 
 ## How it works
 
-You pick a movie, then a cinema and a showtime, then a seat. The movies are current releases and the cinemas are real ones across Delhi, from Saket to Connaught Place and Dwarka.
+You pick a movie or a live show, then a cinema and a showtime, then a seat. The movies are current releases and the cinemas are real ones across Delhi, from Saket to Connaught Place and Dwarka.
 
 ![A movie's cinemas and showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg)
 
@@ -18,11 +18,21 @@ The measurements behind the score stay out of the way until you press **Details*
 
 ![The Details pop-up for seat M11: distance to the screen, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg)
 
+Comedy nights, concerts, live cricket and plays run in the same auditoriums:
+
+![Live shows: comedy, music, cricket screenings and theatre, each with a photo and its next show](docs/screenshots/live-shows.jpg)
+
 | A cinema and its auditoriums | Whole hall view |
 |---|---|
 | ![A cinema page with its three auditoriums and today's movies](docs/screenshots/cinema.jpg) | ![The hall from above, with a live preview of the chosen seat's view](docs/screenshots/whole-hall.jpg) |
 | **Checkout** | **Ticket with the booked view** |
 | ![Checkout with UPI, card and pay-at-the-cinema options](docs/screenshots/checkout.jpg) | ![Ticket with QR code, the picture of the seat view and the price breakdown](docs/screenshots/ticket.jpg) |
+
+Cinema staff get their own admin pages for sales, shows, bookings and customers:
+
+| Admin overview | Managing a cinema’s shows |
+|---|---|
+| ![Admin overview with sales totals, a 14-day sales chart, top titles and cinemas](docs/screenshots/admin.jpg) | ![Admin shows page: add a show, or cancel and restore shows per auditorium](docs/screenshots/admin-shows.jpg) |
 
 On a phone the 3D view sits above the seat map:
 
@@ -37,6 +47,9 @@ On a phone the 3D view sits above the seat map:
 - **Seat preview in 3D:** a camera at seated eye level in every seat, a whole-hall view, a view-quality heatmap and a best-seats-together pick for groups of up to 8.
 - **Compare and share:** two seats side by side, or a link that opens the hall at one exact seat.
 - **Most booked seats:** marked on the map, with the ones still free listed for one-tap picking.
+- **Live shows:** stand-up comedy, concerts, live cricket screenings and plays, booked the same way as movies.
+- **Cinema pages:** a photo of each cinema and a picture of every auditorium, rendered from its 3D model.
+- **Admin:** a sales overview, adding, cancelling and restoring shows (cancelling refunds and emails every customer), all bookings, and customer roles.
 - **Accounts:** email and password or Google sign-in, email confirmation, password reset, a signed-in devices list and account deletion.
 - **Payments:** UPI, card and pay at the cinema, through a built-in test gateway. Tickets show the GST included.
 - **Email:** confirmation, ticket, cancellation and refund, and password reset emails.
@@ -54,22 +67,22 @@ npm install
 npm run dev
 ```
 
-Open [localhost:5173](http://localhost:5173). With no settings the data lives in a local SQLite file; `.env.example` lists the optional settings.
+Open [localhost:5173](http://localhost:5173). With no settings the data lives in a local SQLite file; `.env.example` lists the optional settings. To see the admin pages, choose **Sign in as the demo admin** on the sign-in page, or list your email in `ADMIN_EMAILS`.
 
 ## Tests
 
 ```bash
-npm run test:api   # 110 API checks, against a server started on port 8799
-npm run test:e2e   # 27 browser checks in Chrome, with npm run dev running
+npm run test:api   # 134 API checks, against a server started on port 8799
+npm run test:e2e   # 31 browser checks in Chrome, with npm run dev running
 ```
 
 ## Project structure
 
 - `src/three/HallScene.ts`: the 3D hall, with seat view, whole-hall view and snapshot capture.
 - `src/lib/hall.ts`: halls defined in metres, the seat layout and each seat’s view score.
-- `src/data/`: the movies, the Delhi cinemas and the generated showtimes.
-- `src/pages/`: home, movie, cinemas, booking, checkout, ticket, account and help.
-- `server/`: the API, the database layer, Google sign-in, the test payment gateway and email.
+- `src/data/`: the movies and live shows, the Delhi cinemas, their photos and the generated showtimes.
+- `src/pages/`: home, movie or show, live shows, cinemas, booking, checkout, ticket, account, help and `admin/`.
+- `server/`: the API (including the admin routes), the database layer, Google sign-in, the test payment gateway and email.
 
 ## How booking stays correct
 
@@ -83,5 +96,6 @@ The database, not the browser, decides who gets a seat:
 
 ## Limitations
 
-- The movies and cinemas are real, but SightLine isn’t connected to any cinema. Showtimes, prices, seat layouts and the background crowd are illustrative.
+- The movies and cinemas are real, but SightLine isn’t connected to any cinema. Showtimes, live shows, prices, seat layouts and the background crowd are illustrative.
+- Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page); two cinemas with no free photo use representative ones, labelled as such.
 - Payments run in test mode; a real launch would swap `server/gateway.ts` for a provider such as Razorpay.
