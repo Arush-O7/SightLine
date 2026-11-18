@@ -67,34 +67,27 @@ def run() -> None:
         def home():
             go(page, "/")
             expect(page.locator("h1")).to_have_text("Try any seat before you book")
-            expect(page.locator(".hx-picker")).to_contain_text("Book Row")
+            expect(page.get_by_role("button", name="Browse Movies")).to_be_visible()
             page.screenshot(path=SHOTS / "01-home.png")
 
-        check("home: headline and the seat picker", home)
+        check("home: headline and actions", home)
 
         def live_hall():
             # the 3D hall loads after the page and starts its tour
-            expect(page.locator(".home-hero-live.on")).to_be_visible(timeout=15000)
+            expect(page.locator(".home-hero-live.on")).to_contain_text("view score", timeout=20000)
             expect(page.locator(".hero-hall canvas")).to_have_count(1)
 
         check("home: the live 3D hall starts", live_hall)
 
-        def seat_picker():
-            score = page.locator(".hx-score b")
-            page.get_by_role("button", name="Best seat").click()
-            best = score.inner_text()
-            page.get_by_role("button", name="Near the front").click()
-            expect(page.get_by_role("button", name="Near the front")).to_have_attribute("aria-pressed", "true")
-            expect(score).not_to_have_text(best)
-            expect(page.locator(".seat-picker rect.on")).to_have_count(1)
-            # tapping a seat on the plan picks it, and the booking link follows
-            seat = page.locator(".seat-picker rect.free").nth(40)
-            seat_id = seat.get_attribute("data-seat")
-            seat.click()
-            expect(page.locator(".seat-picker rect.on")).to_have_attribute("data-seat", seat_id)
-            expect(page.locator(".hx-picker a.btn-primary")).to_have_attribute("href", re.compile(f"seat={seat_id}$"))
+        def seat_comparison():
+            cards = page.locator(".cmp-card")
+            expect(cards).to_have_count(2)
+            scores = [int(cards.nth(i).locator(".cmp-score").inner_text()) for i in range(2)]
+            assert scores[1] > scores[0], f"the best seat should outscore the front row: {scores}"
+            page.wait_for_function("[...document.querySelectorAll('.cmp-card img')].every(i => i.naturalWidth > 0 || i.loading === 'lazy')")
+            expect(cards.nth(1).locator(".hall-plan rect.on")).to_have_count(1)
 
-        check("home: the seat picker moves between seats", seat_picker)
+        check("home: the two-seat comparison shows both scores", seat_comparison)
 
         def language_filter():
             page.get_by_role("button", name="Tamil", exact=True).click()

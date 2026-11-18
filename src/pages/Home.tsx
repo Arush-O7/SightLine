@@ -4,12 +4,11 @@ import { Search } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
 import EventCard from '../components/EventCard';
 import MovieCard from '../components/MovieCard';
-import SeatPicker from '../components/SeatPicker';
+import HallPlan from '../components/HallPlan';
 import { CINEMAS } from '../data/cinemas';
 import { sized } from '../data/photos';
 import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
-import { warmBooking } from '../lib/preload';
 import { useTitle } from '../lib/useTitle';
 
 const HeroHall = lazy(() => import('../components/HeroHall'));
@@ -29,18 +28,13 @@ function nextShowIn(movieId: string, hallId: string): Show | null {
   return null;
 }
 
-/** Four seats that show the range of views in a hall, used by the tour and the preset buttons. */
-function presetSeats(layout: HallLayout, taken: Set<string>): { label: string; seat: Seat }[] {
+/** Four seats that show the range of views in a hall, for the hero's camera tour. */
+function tourSeats(layout: HallLayout, taken: Set<string>): Seat[] {
   const g = layout.grid;
   const free = (r: number, from: number) => g[r].slice(from).find((s) => !taken.has(s.id)) ?? g[r][from];
   const middle = (r: number) => Math.floor(g[r].length / 2);
   const front = Math.min(2, g.length - 1);
-  return [
-    { label: 'Best seat', seat: layout.byId.get(layout.bestSeatId)! },
-    { label: 'Off to the side', seat: free(Math.floor(g.length * 0.55), 1) },
-    { label: 'Back row', seat: free(g.length - 1, middle(g.length - 1)) },
-    { label: 'Near the front', seat: free(front, middle(front)) },
-  ];
+  return [layout.byId.get(layout.bestSeatId)!, free(Math.floor(g.length * 0.55), 1), free(g.length - 1, middle(g.length - 1)), free(front, middle(front))];
 }
 
 const tilt = (deg: number) => `${Math.abs(Math.round(deg))}° ${deg >= 0 ? 'up' : 'down'}`;
@@ -70,13 +64,10 @@ export default function Home() {
   const heroShow = useMemo(() => nextShowIn(featured.id, 'h2'), [featured.id]);
   const heroLayout = getLayout(heroShow?.hallId ?? 'h2');
   const heroTaken = useMemo(() => (heroShow ? crowdFor(heroShow, heroLayout) : new Set<string>()), [heroShow, heroLayout]);
-  const presets = useMemo(() => presetSeats(heroLayout, heroTaken), [heroLayout, heroTaken]);
-  const tour = useMemo(() => presets.map((p) => p.seat), [presets]);
+  const tour = useMemo(() => tourSeats(heroLayout, heroTaken), [heroLayout, heroTaken]);
   const heroVenue = heroShow ? venueOf(heroShow) : null;
-  const [seat, setSeat] = useState<Seat>(() => presets[0].seat);
-  const [pick, setPick] = useState<Seat | null>(null);
+  const [seat, setSeat] = useState<Seat | null>(null);
   const [live, setLive] = useState(false);
-  const m = heroLayout.metrics[seat.index];
 
   // the two seats compared further down, in the same large-screen auditorium
   const big = getLayout('h2');
@@ -104,7 +95,6 @@ export default function Home() {
               movie={featured}
               occupied={heroTaken}
               tour={tour}
-              pick={pick}
               onSeat={setSeat}
               onReady={() => setLive(true)}
             />
@@ -118,8 +108,8 @@ export default function Home() {
               <span>Try any seat</span> <span>before you book</span>
             </h1>
             <p className="hx-lede">
-              Every auditorium in Delhi’s cinemas, rebuilt in 3D to scale. Tap a seat on the plan and the screen moves to where you’d see it
-              from, then book the one you like.
+              Every auditorium in Delhi’s cinemas, rebuilt in 3D to scale. Sit in any seat, see the screen exactly as it looks from there,
+              then book the one you like.
             </p>
             <div className="hx-cta">
               <button
@@ -133,74 +123,21 @@ export default function Home() {
                 Explore Cinemas
               </Link>
             </div>
+            {heroVenue ? (
+              <p className={`hx-now home-hero-live ${live && seat ? 'on' : ''}`} aria-live="polite">
+                <span className="hx-now-dot" aria-hidden="true" />
+                {seat ? (
+                  <>
+                    Live from Row {seat.rowLabel}, Seat {seat.number} at {heroVenue.cinema.name}: view score{' '}
+                    <b>{Math.round(heroLayout.metrics[seat.index].score)}</b>
+                  </>
+                ) : (
+                  'Loading the hall'
+                )}
+              </p>
+            ) : null}
           </div>
 
-          {heroShow && heroVenue ? (
-            <aside className={`hx-picker home-hero-live ${live ? 'on' : ''}`} aria-label="Try a seat">
-              <div className="hx-picker-head">
-                <Link to={`/movie/${featured.id}`} className="hx-picker-poster" tabIndex={-1} aria-hidden="true">
-                  <Poster movie={featured} eager />
-                </Link>
-                <div>
-                  <p className="hx-picker-title">{featured.title}</p>
-                  <p className="hx-picker-venue">
-                    {heroVenue.cinema.name}, {heroVenue.screen.name}
-                    <br />
-                    {heroShow.dateKey === today ? 'Today' : formatDate(heroShow.start)} at {formatTime(heroShow.start)}
-                  </p>
-                </div>
-              </div>
-
-              <SeatPicker
-                layout={heroLayout}
-                taken={heroTaken}
-                current={seat.id}
-                onPick={(s) => {
-                  setPick({ ...s });
-                  setSeat(s);
-                }}
-              />
-
-              <div className="hx-readout" aria-live="polite">
-                <div>
-                  <p className="hx-seat">
-                    Row {seat.rowLabel}, Seat {seat.number}
-                  </p>
-                  <p className="hx-verdict">{m.label}</p>
-                </div>
-                <p className="hx-score">
-                  <b>{Math.round(m.score)}</b>
-                  <span>view score</span>
-                </p>
-              </div>
-
-              <div className="hx-presets" role="group" aria-label="Jump to a seat">
-                {presets.map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    className={`chip ${seat.id === p.seat.id ? 'on' : ''}`}
-                    aria-pressed={seat.id === p.seat.id}
-                    onClick={() => {
-                      setPick({ ...p.seat });
-                      setSeat(p.seat);
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              <Link
-                className="btn btn-primary btn-block"
-                to={`/book/${heroShow.id}?seat=${seat.id}`}
-                onMouseEnter={warmBooking}
-                onFocus={warmBooking}
-              >
-                Book Row {seat.rowLabel}, Seat {seat.number}
-              </Link>
-            </aside>
-          ) : null}
         </div>
       </section>
 
@@ -264,28 +201,27 @@ export default function Home() {
           </div>
         </div>
         <div className="cmp">
-          <figure className="cmp-shot">
-            <img src="/home/front-row.jpg" width={1680} height={880} loading="lazy" decoding="async" alt="The screen seen from front-row seat C11: it overflows the view and sits far above eye level" />
-            <figcaption>
-              <span className="cmp-score">{Math.round(fm.score)}</span>
-              <span>
-                <b>Row C, Seat 11</b>
-                {fm.distance.toFixed(1)} m from the screen, head tilted {tilt(fm.elevation)}
-              </span>
-            </figcaption>
-          </figure>
-          <figure className="cmp-shot">
-            <img src="/home/best-seat.jpg" width={1680} height={880} loading="lazy" decoding="async" alt="The screen seen from seat M11: the whole picture fits the view at eye level" />
-            <figcaption>
-              <span className="cmp-score is-best">{Math.round(bm.score)}</span>
-              <span>
-                <b>
-                  Row {best.rowLabel}, Seat {best.number}
-                </b>
-                {bm.distance.toFixed(1)} m from the screen, head tilted {tilt(bm.elevation)}
-              </span>
-            </figcaption>
-          </figure>
+          {[
+            { key: 'front', label: 'Front row', seat: front, metrics: fm, img: '/home/front-row.jpg', alt: 'The screen seen from front-row seat C11: it towers above you and spills past both edges of your view' },
+            { key: 'best', label: 'Best seat', seat: best, metrics: bm, img: '/home/best-seat.jpg', alt: 'The screen seen from seat M11: the whole picture sits at eye level, framed by the hall' },
+          ].map((c) => (
+            <figure key={c.key} className={`cmp-card ${c.key === 'best' ? 'is-best' : ''}`}>
+              <img src={c.img} width={1780} height={980} loading="lazy" decoding="async" alt={c.alt} />
+              <figcaption className="cmp-body">
+                <span className="cmp-score">{Math.round(c.metrics.score)}</span>
+                <span className="cmp-text">
+                  <span className="cmp-label">{c.label}</span>
+                  <b>
+                    Row {c.seat.rowLabel}, Seat {c.seat.number}
+                  </b>
+                  <span>
+                    {c.metrics.distance.toFixed(1)} m from the screen, head tilted {tilt(c.metrics.elevation)}
+                  </span>
+                </span>
+                <HallPlan layout={big} highlight={c.seat.id} className="cmp-plan" />
+              </figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 

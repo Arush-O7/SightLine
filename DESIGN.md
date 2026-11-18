@@ -298,14 +298,16 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - Translucent pills floating over the 3D view: a two-option view switch top left, icon tools top right, a caption bottom left naming the seat, a compact four-way seat-hop pad bottom right.
 
 ### Home Hero
-- The live 3D hall fills the first screen, playing the lead movie with its real poster centred on the screen. The camera flies in once, then glides from seat to seat until the visitor picks one.
-- Left: the Marquee Hero headline, one sentence on how it works, Browse Movies (Primary) and Explore Cinemas (Glass).
-- Right: the **Seat Picker**, a translucent panel that is the page's one bold idea. It holds the show (poster thumbnail, title, cinema and auditorium, day and time), a pocket seat plan drawn from the hall's real geometry (free seats in Seat Free, taken seats outlined, the current seat in Tungsten; tapping a free seat moves the 3D camera there), the seat name in marquee capitals with its verdict in Tungsten, the view score as a large marquee number, four preset pills (Best seat, Off to the side, Back row, Near the front) that give keyboard users the same choice, and "Book Row M, Seat 11" as the Primary button.
-- The headline, sentence and panel rise in once on load (reduced motion: no movement). A scrim keeps the copy readable over the hall.
-- Under 860px the hall gets its own frame at the top, about half the screen tall, and the headline overlaps its lower edge; the panel follows the buttons.
+- The live 3D hall fills the first screen, playing the lead movie with its real poster on the screen, placed right of centre so it stays clear of the headline. The camera flies in once, then glides slowly from seat to seat (the best seat, an off-centre seat, the back row, near the front).
+- Left: the Marquee Hero headline, capped at about five of its own letter-widths so it wraps to three lines and never covers the poster; one sentence on how it works; Browse Movies (Primary) and Explore Cinemas (Glass); then one quiet line with an Available dot naming the seat the camera is in, its cinema and its view score. No panel or card sits over the hall.
+- The headline and sentence rise in once on load (reduced motion: no movement). A scrim darkens the left for the copy and fades into the page at the bottom.
+- Under 860px the hall gets its own frame at the top, about half the screen tall, and the headline overlaps its lower edge.
 
 ### Seat Comparison
-- "Same hall, two seats": two real renders of the same large-screen auditorium, side by side (stacked on phones), from the front row and from the best seat. Over the bottom of each, on a dark fade: the view score as a marquee number (Paper for the front row, Tungsten for the best seat), the seat name, and its distance and head tilt. No caption under the images.
+- "Same hall, two seats": two cards side by side (stacked on phones), each a real render of the same large-screen auditorium with the house lights up, one from the front row and one from the best seat. Below each render, never over it: the view score as a large marquee number (Paper for the front row, Tungsten for the best seat), a small label ("Front row", "Best seat" in Tungsten), the seat name, its distance and head tilt, and a small Hall Plan with that seat marked. The plan is dropped on narrow phones.
+
+### Hall Plan
+- A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, and one marked seat (Paper, or Tungsten for the best seat). Used only in the Seat Comparison, beside text that states the same facts.
 
 ### Cinema Tiles
 - On the home page all eight cinemas sit in a 4 by 2 grid of 4:3 photo tiles (2 columns on tablets and phones), each a link: the photo, a dark fade at the bottom, the name in marquee capitals and the area beneath. Stand-in photos keep their "Representative photo" pill. The photo zooms 4% on hover.

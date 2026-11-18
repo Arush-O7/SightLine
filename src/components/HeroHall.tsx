@@ -9,10 +9,8 @@ interface Props {
   layout: HallLayout;
   movie: Movie;
   occupied: Set<string>;
-  /** seats to visit, in order, until the visitor picks one */
+  /** seats to visit, in order */
   tour: Seat[];
-  /** a seat the visitor chose; the tour stops and the camera goes there */
-  pick: Seat | null;
   onSeat: (seat: Seat) => void;
   onReady: () => void;
 }
@@ -21,13 +19,11 @@ interface Props {
 const GLIDE = 3.2;
 const HOLD_SEAT = 7500;
 
-/** The real 3D hall behind the home page: it flies in, glides from seat to seat, and sits wherever the visitor points. */
-export default function HeroHall({ layout, movie, occupied, tour, pick, onSeat, onReady }: Props) {
+/** The real 3D hall behind the home page: it flies in once, then glides from seat to seat. */
+export default function HeroHall({ layout, movie, occupied, tour, onSeat, onReady }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const cb = useRef({ onSeat, onReady });
   cb.current = { onSeat, onReady };
-  const sceneRef = useRef<HallScene | null>(null);
-  const stopTour = useRef<() => void>(() => {});
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -42,7 +38,6 @@ export default function HeroHall({ layout, movie, occupied, tour, pick, onSeat, 
     } catch {
       return; // no WebGL: the still backdrop behind stays visible
     }
-    sceneRef.current = scene;
     const photo = screenPhoto(movie);
     // a wide photo fills the screen; a movie with only a poster shows it centred over a blurred copy
     if (photo) void paintPhoto(art, photo).then((ok) => ok && live && scene.refreshScreen());
@@ -56,10 +51,9 @@ export default function HeroHall({ layout, movie, occupied, tour, pick, onSeat, 
     let step = 0;
     let timer = 0;
     let visible = true;
-    let touring = true;
 
     const next = () => {
-      if (!touring || !visible || document.hidden) return;
+      if (!visible || document.hidden) return;
       const seat = tour[step % tour.length];
       scene.enterSeatView(seat.id, GLIDE);
       cb.current.onSeat(seat);
@@ -68,16 +62,12 @@ export default function HeroHall({ layout, movie, occupied, tour, pick, onSeat, 
       timer = window.setTimeout(next, HOLD_SEAT);
     };
     timer = window.setTimeout(next, reduced ? 0 : 1200);
-    stopTour.current = () => {
-      touring = false;
-      window.clearTimeout(timer);
-    };
 
     // pause the tour while the hero is off screen
     const io = new IntersectionObserver(([entry]) => {
       const was = visible;
       visible = entry.isIntersecting;
-      if (visible && !was && touring) {
+      if (visible && !was) {
         window.clearTimeout(timer);
         timer = window.setTimeout(next, 600);
       } else if (!visible) {
@@ -88,20 +78,11 @@ export default function HeroHall({ layout, movie, occupied, tour, pick, onSeat, 
 
     return () => {
       live = false;
-      sceneRef.current = null;
-      stopTour.current = () => {};
       window.clearTimeout(timer);
       io.disconnect();
       scene.dispose();
     };
   }, [layout, movie, occupied, tour]);
-
-  useEffect(() => {
-    if (!pick || !sceneRef.current) return;
-    stopTour.current();
-    sceneRef.current.enterSeatView(pick.id, 1.8);
-    cb.current.onSeat(pick);
-  }, [pick]);
 
   return <div className="hero-hall" ref={mountRef} aria-hidden="true" />;
 }
