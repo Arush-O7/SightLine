@@ -234,8 +234,50 @@ def run() -> None:
             page.wait_for_url(re.compile(r"#/cinema/"))
             expect(page.locator(".screen-card").first).to_be_visible()
             assert page.locator(".venue-movie").count() >= 1
+            # the building photo and the auditorium renders actually load
+            page.wait_for_function("[...document.querySelectorAll('.cinema-hero img, .screen-card img')].every(i => i.complete && i.naturalWidth > 0)", timeout=15000)
 
-        check("cinemas: list and a cinema's page with screens and movies", cinema_page)
+        check("cinemas: list and a cinema's page with photos, screens and movies", cinema_page)
+
+        def live_shows():
+            go(page, "/events")
+            cards = page.locator(".event-card")
+            expect(cards.nth(5)).to_be_visible()
+            page.get_by_role("button", name="Comedy", exact=True).click()
+            expect(cards).to_have_count(1)
+            cards.first.click()
+            page.wait_for_url(re.compile(r"#/movie/delhi-comedy-night"))
+            expect(page.locator(".meta-row .badge")).to_have_text("Comedy")
+            expect(page.get_by_role("link", name="All live shows")).to_be_visible()
+
+        check("live shows: list, filter and a show's page", live_shows)
+
+        def staff_only():
+            go(page, "/admin")
+            expect(page.get_by_role("heading", name="Staff only")).to_be_visible()
+
+        check("admin: customers are kept out", staff_only)
+
+        def admin_flow():
+            staff = browser.new_context(viewport={"width": 1440, "height": 900})
+            spage = staff.new_page()
+            watch_console(spage)
+            go(spage, "/login")
+            spage.get_by_role("button", name=re.compile("demo admin")).click()
+            spage.wait_for_url(re.compile(r"#/admin"))
+            expect(spage.locator(".admin-tiles dd").first).to_contain_text("₹")
+            spage.get_by_role("link", name="Shows", exact=True).click()
+            row = spage.locator(".admin-list li").filter(has=spage.get_by_role("button", name="Cancel", exact=True)).first
+            title = row.locator("b").inner_text()
+            row.get_by_role("button", name="Cancel", exact=True).click()
+            spage.get_by_role("button", name=re.compile(r"^Cancel (Show|and Refund)")).click()
+            expect(spage.locator(".form-ok")).to_contain_text(f"{title} at")
+            spage.get_by_role("button", name="Restore").first.click()
+            expect(spage.locator(".form-ok")).to_contain_text("back on sale")
+            spage.screenshot(path=SHOTS / "08-admin-shows.png")
+            staff.close()
+
+        check("admin: sign in as staff, cancel and restore a show", admin_flow)
 
         def not_found():
             go(page, "/no-such-page")
@@ -262,7 +304,7 @@ def run() -> None:
         phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
         mpage = phone.new_page()
         watch_console(mpage)
-        for path, name in [("/", "home"), ("/movie/jailer-2", "film"), ("/cinemas", "cinemas"), ("/help", "help"), ("/signup", "sign-up")]:
+        for path, name in [("/", "home"), ("/movie/jailer-2", "film"), ("/events", "live shows"), ("/cinemas", "cinemas"), ("/help", "help"), ("/signup", "sign-up")]:
             def phone_page(path=path, name=name):
                 go(mpage, path)
                 no_sideways_scroll(mpage)

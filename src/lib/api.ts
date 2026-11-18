@@ -1,3 +1,4 @@
+import type { ScheduleChange } from '../data/movies';
 /** Thin client for the SightLine API. Every failure becomes an ApiFailure with a message fit to show. */
 
 export interface User {
@@ -9,6 +10,7 @@ export interface User {
   hasPassword: boolean;
   google: boolean;
   createdAt: number;
+  role: 'user' | 'admin';
 }
 
 export interface DeviceSession {
@@ -35,6 +37,58 @@ export interface Booking {
   viewSeat: string | null;
   snapshot: string | null;
   createdAt: number;
+}
+
+export interface AdminBooking {
+  id: string;
+  showId: string;
+  title: string;
+  kind: string;
+  cinema: string;
+  cinemaId: string | null;
+  screen: string;
+  start: number | null;
+  seats: number;
+  total: number;
+  paymentStatus: 'paid' | 'due';
+  instrument: string | null;
+  customer: { name: string; email: string };
+  createdAt: number;
+}
+
+export interface AdminOverview {
+  totals: { revenue: number; due: number; bookings: number; tickets: number; upcoming: number; refunds: number; refunded: number; users: number };
+  daily: { date: string; revenue: number; bookings: number; tickets: number }[];
+  byTitle: { key: string; bookings: number; tickets: number; revenue: number }[];
+  byCinema: { key: string; bookings: number; tickets: number; revenue: number }[];
+  recent: AdminBooking[];
+}
+
+export interface AdminShow {
+  id: string;
+  movieId: string;
+  title: string;
+  kind: string;
+  time: string;
+  runtime: number;
+  start: number;
+  cancelled: boolean;
+  added: boolean;
+  started: boolean;
+  sold: number;
+}
+
+export interface AdminScreenDay {
+  id: string;
+  name: string;
+  format: string;
+  capacity: number;
+  shows: AdminShow[];
+}
+
+export interface AdminUser extends User {
+  bookings: number;
+  spent: number;
 }
 
 export type PaymentInput =
@@ -153,7 +207,23 @@ export const api = {
 
   config: () => request<SiteConfig>('GET', '/config'),
   media: () => request<{ movies: Record<string, MovieMedia> }>('GET', '/media').then((r) => r.movies),
-  demoLogin: () => request<{ user: User }>('POST', '/auth/demo', {}).then((r) => r.user),
+  demoLogin: (as: 'user' | 'admin' = 'user') => request<{ user: User }>('POST', '/auth/demo', { as }).then((r) => r.user),
+  schedule: () => request<{ changes: ScheduleChange[] }>('GET', '/schedule').then((r) => r.changes),
+
+  admin: {
+    overview: () => request<AdminOverview>('GET', '/admin/overview'),
+    bookings: (when: 'upcoming' | 'past' | 'all', q: string) =>
+      request<{ bookings: AdminBooking[] }>('GET', `/admin/bookings?when=${when}&q=${enc(q)}`).then((r) => r.bookings),
+    cancelBooking: (id: string) => request<{ ok: true; refunded: boolean }>('POST', `/admin/bookings/${enc(id)}/cancel`, {}),
+    shows: (cinema: string, date: string) =>
+      request<{ cinema: { id: string; name: string }; date: string; screens: AdminScreenDay[] }>('GET', `/admin/shows?cinema=${enc(cinema)}&date=${date}`),
+    addShow: (input: { movieId: string; cinemaId: string; screenId: string; date: string; time: string }) =>
+      request<{ ok: true; showId: string }>('POST', '/admin/shows', input),
+    cancelShow: (showId: string) => request<{ ok: true; cancelledBookings: number }>('POST', '/admin/shows/cancel', { showId }),
+    restoreShow: (showId: string) => request<{ ok: true }>('POST', '/admin/shows/restore', { showId }),
+    users: () => request<{ users: AdminUser[] }>('GET', '/admin/users').then((r) => r.users),
+    setRole: (id: number, role: 'user' | 'admin') => request<{ user: User }>('PATCH', `/admin/users/${id}`, { role }).then((r) => r.user),
+  },
   forgot: (email: string) => request<{ ok: true }>('POST', '/auth/forgot', { email }),
   resetPassword: (token: string, password: string) => request<{ ok: true }>('POST', '/auth/reset', { token, password }),
   outbox: () => request<{ emails: DemoEmail[] }>('GET', '/demo/outbox').then((r) => r.emails),

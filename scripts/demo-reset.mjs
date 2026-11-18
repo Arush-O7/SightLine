@@ -11,6 +11,7 @@ try {
   if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
   console.log(`Demo data reset on ${base}.`);
   console.log(`Demo account: ${data.demoEmail} (use "Continue With Demo Account" on the sign-in page).`);
+  console.log('Demo admin: admin@sightline.test (use "Sign in as the demo admin" on the sign-in page).');
 } catch (err) {
   console.error(`Could not reset ${base}: ${err.message}`);
   console.error('Is the site running? Start it with "npm run dev", or pass PORT for a production server.');

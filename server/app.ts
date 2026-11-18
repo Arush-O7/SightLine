@@ -5,7 +5,29 @@
 // UNIQUE (show_id, seat_id) and every write runs in a transaction.
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { BOOKING_FEE, MAX_SEATS, MOVIES, crowdFor, dateKey, formatDate, formatTime, getMovie, money, parseShow, showsFor, venueOf, type Show } from '../src/data/movies.js';
+import {
+  BOOKING_FEE,
+  MAX_SEATS,
+  MOVIES,
+  TITLES,
+  crowdFor,
+  dateKey,
+  formatDate,
+  formatTime,
+  getMovie,
+  getScheduleChanges,
+  isLive,
+  money,
+  parseShow,
+  screenDay,
+  setScheduleChanges,
+  showsFor,
+  venueOf,
+  type ScheduleChange,
+  type Show,
+} from '../src/data/movies.js';
+import { CINEMAS, getCinema } from '../src/data/cinemas.js';
+import { hashString, mulberry32 } from '../src/lib/rng.js';
 import { movieMedia, tmdbConfigured } from './media.js';
 import { findBestSeats, getHall, getLayout, type HallLayout } from '../src/lib/hall.js';
 import { getDb, isUniqueViolation, type Database, type Query } from './db.js';
@@ -26,6 +48,16 @@ const OAUTH_MS = 10 * 60 * 1000;
 // demo inbox, one-click demo account and reset; SIGHTLINE_DEMO=0 turns them off
 const demoEnabled = () => process.env.SIGHTLINE_DEMO !== '0';
 const DEMO_USER = { name: 'Demo Viewer', email: 'demo@sightline.test', password: 'sightline-demo-2026' };
+const DEMO_ADMIN = { name: 'Demo Admin', email: 'admin@sightline.test', password: 'sightline-admin-2026' };
+
+// accounts listed in ADMIN_EMAILS are admins whatever their stored role
+const adminEmails = () =>
+  new Set(
+    (process.env.ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
 
 class ApiError extends Error {
   constructor(
@@ -79,9 +111,10 @@ interface User {
   hasPassword: boolean;
   google: boolean;
   createdAt: number;
+  role: 'user' | 'admin';
 }
 
-const USER_COLS = `u.id, u.email, u.name, u.email_verified_at, u.created_at,
+const USER_COLS = `u.id, u.email, u.name, u.email_verified_at, u.created_at, u.role,
   CASE WHEN u.pass_hash <> '' THEN 1 ELSE 0 END AS has_password,
   CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google`;
 
@@ -93,6 +126,7 @@ interface UserRow {
   created_at: number;
   has_password: number;
   has_google: number;
+  role: string;
 }
 
 const userJson = (r: UserRow): User => ({
@@ -103,6 +137,7 @@ const userJson = (r: UserRow): User => ({
   hasPassword: !!Number(r.has_password),
   google: !!Number(r.has_google),
   createdAt: Number(r.created_at),
+  role: r.role === 'admin' || adminEmails().has(r.email) ? 'admin' : 'user',
 });
 
 async function loadUser(db: Query, id: number): Promise<User> {
@@ -138,6 +173,25 @@ async function requireSession(db: Database, req: IncomingMessage) {
   return s;
 }
 const requireUser = async (db: Database, req: IncomingMessage) => (await requireSession(db, req)).user;
+
+async function requireAdmin(db: Database, req: IncomingMessage) {
+  const user = await requireUser(db, req);
+  if (user.role !== 'admin') throw new ApiError(403, 'admin_only', 'Only cinema staff can open this page.');
+  return user;
+}
+
+/* admin changes to the generated programme, shared by every server process through the database */
+let scheduleLoadedAt = 0;
+async function syncSchedule(db: Query, force = false) {
+  if (!force && Date.now() - scheduleLoadedAt < 3000) return;
+  const rows = await db.all<{ action: string; movie_id: string; cinema_id: string; screen_id: string; date_key: string; time: string }>(
+    'SELECT action, movie_id, cinema_id, screen_id, date_key, time FROM schedule_changes ORDER BY id',
+  );
+  setScheduleChanges(
+    rows.map((r) => ({ action: r.action as ScheduleChange['action'], movieId: r.movie_id, cinemaId: r.cinema_id, screenId: r.screen_id, dateKey: r.date_key, time: r.time })),
+  );
+  scheduleLoadedAt = Date.now();
+}
 
 async function startSession(db: Query, req: IncomingMessage, res: ServerResponse, userId: number) {
   const token = randomBytes(32).toString('base64url');
@@ -435,7 +489,7 @@ function bookingFacts(row: BookingRow, seats: string[]): [string, string][] {
   const hall = getHall(row.hall_id);
   const venue = show ? venueOf(show) : null;
   return [
-    ['Movie', getMovie(row.movie_id)?.title ?? row.movie_id],
+    [getMovie(row.movie_id) && isLive(getMovie(row.movie_id)!) ? 'Show' : 'Movie', getMovie(row.movie_id)?.title ?? row.movie_id],
     ['When', show ? `${formatDate(show.start)}, ${formatTime(show.start)}` : row.show_id],
     ['Cinema', venue ? `${venue.cinema.name}, ${venue.cinema.area}` : '—'],
     ['Screen', venue ? `${venue.screen.name} · ${hall.format}` : hall.format],
@@ -446,25 +500,29 @@ function bookingFacts(row: BookingRow, seats: string[]): [string, string][] {
   ];
 }
 
-async function ensureDemoUser(db: Query): Promise<number> {
-  const existing = await db.get<{ id: number; email_verified_at: number | null }>('SELECT id, email_verified_at FROM users WHERE email = ?', DEMO_USER.email);
+async function ensureAccount(db: Query, who: { name: string; email: string; password: string }, role: 'user' | 'admin', ageDays: number): Promise<number> {
+  const existing = await db.get<{ id: number; email_verified_at: number | null; role: string }>('SELECT id, email_verified_at, role FROM users WHERE email = ?', who.email);
   if (existing) {
     if (existing.email_verified_at == null) await db.run('UPDATE users SET email_verified_at = ? WHERE id = ?', Date.now(), existing.id);
+    if (existing.role !== role) await db.run('UPDATE users SET role = ? WHERE id = ?', role, existing.id);
     return Number(existing.id);
   }
   const salt = randomBytes(16).toString('hex');
-  const hash = await hashPassword(DEMO_USER.password, salt);
+  const hash = await hashPassword(who.password, salt);
   const row = await db.get<{ id: number }>(
-    'INSERT INTO users (email, name, pass_hash, pass_salt, created_at, email_verified_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
-    DEMO_USER.email,
-    DEMO_USER.name,
+    'INSERT INTO users (email, name, pass_hash, pass_salt, created_at, email_verified_at, role) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
+    who.email,
+    who.name,
     hash,
     salt,
-    Date.now() - 40 * 24 * 3600_000,
+    Date.now() - ageDays * 24 * 3600_000,
     Date.now(),
+    role,
   );
   return Number(row!.id);
 }
+const ensureDemoUser = (db: Query) => ensureAccount(db, DEMO_USER, 'user', 40);
+const ensureDemoAdmin = (db: Query) => ensureAccount(db, DEMO_ADMIN, 'admin', 90);
 
 /** Gives the demo account a believable history: two upcoming tickets and one already watched. */
 async function seedDemoBookings(db: Database, userId: number) {
@@ -504,6 +562,80 @@ async function seedDemoBookings(db: Database, userId: number) {
         ref, userId, show.id, subtotal + fees, item.method, item.instrument, item.status, id, created,
       );
       created += 3600_000;
+    }
+  });
+}
+
+/** Cancels a booking, frees its seats, refunds a paid one and emails the customer. */
+async function cancelBooking(db: Database, req: IncomingMessage, row: BookingRow, email: string, byStaff: boolean): Promise<boolean> {
+  const seats = await seatsOf(db, row.id);
+  const refunded = row.payment_status === 'paid';
+  await db.tx(async (q) => {
+    await q.run("UPDATE payments SET status = ? WHERE booking_id = ? AND status IN ('paid', 'due')", refunded ? 'refunded' : 'void', row.id);
+    await q.run('DELETE FROM bookings WHERE id = ?', row.id); // booking_seats cascade, freeing the seats
+  });
+  await sendMail(db, req, email, 'cancelled', {
+    subject: `Booking ${row.id} cancelled`,
+    heading: byStaff ? 'The cinema has cancelled your booking' : 'Your booking is cancelled',
+    lines: [
+      byStaff ? 'We’re sorry: this show can no longer go ahead as booked, so your seats have been released.' : 'Your seats have been released.',
+      refunded
+        ? `A refund of ${money(Number(row.total))} to ${row.instrument ?? 'your payment method'} has been started (test mode: no money moved).`
+        : 'Nothing was due, so there is nothing to refund.',
+    ],
+    facts: bookingFacts(row, seats).slice(0, 4),
+  });
+  return refunded;
+}
+
+const DEMO_CUSTOMERS = [
+  'Aarav Kapoor', 'Ishita Sharma', 'Kabir Mehta', 'Ananya Iyer', 'Rohan Verma', 'Meera Nair', 'Vikram Singh', 'Sana Qureshi', 'Arjun Malhotra', 'Priya Bansal',
+];
+
+/** Gives the admin dashboard a few weeks of believable sales from demo customers. */
+async function seedDemoCustomers(db: Database) {
+  if (await db.get("SELECT 1 AS x FROM users WHERE email = 'aarav.kapoor@example.com'")) return;
+  const rng = mulberry32(hashString('sightline-demo-customers'));
+  const ids: number[] = [];
+  for (const [i, name] of DEMO_CUSTOMERS.entries()) {
+    const email = `${name.toLowerCase().replace(' ', '.')}@example.com`;
+    ids.push(await ensureAccount(db, { name, email, password: randomBytes(12).toString('hex') }, 'user', 20 + i * 4));
+  }
+  const today = new Date();
+  const methods = [
+    { method: 'upi', instrument: 'UPI ••••@okbank', status: 'paid' },
+    { method: 'card', instrument: 'Card •••• 1111', status: 'paid' },
+    { method: 'counter', instrument: 'Pay at the cinema', status: 'due' },
+  ];
+  await db.tx(async (q) => {
+    for (let n = 0; n < 46; n++) {
+      const offset = Math.floor(rng() * 19) - 13; // two weeks back to five days ahead
+      const key = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset));
+      const title = rng() < 0.75 ? MOVIES[Math.floor(rng() * MOVIES.length)] : TITLES[MOVIES.length + Math.floor(rng() * (TITLES.length - MOVIES.length))];
+      const shows = showsFor(title, key).flatMap((g) => g.shows);
+      if (!shows.length) continue;
+      const show = shows[Math.floor(rng() * shows.length)];
+      const layout = getLayout(show.hallId);
+      const seats = findBestSeats(layout, await unavailableSeats(q, show, layout), 1 + Math.floor(rng() * 4));
+      if (!seats.length) continue;
+      const userId = ids[Math.floor(rng() * ids.length)];
+      const pay = methods[rng() < 0.5 ? 0 : rng() < 0.75 ? 1 : 2];
+      const subtotal = seats.reduce((sum, seat) => sum + seat.zone.price, 0);
+      const fees = seats.length * BOOKING_FEE;
+      // booked up to three days before the show, and never in the future
+      const created = Math.min(show.start.getTime() - (1 + Math.floor(rng() * 72)) * 3600_000, Date.now() - (1 + Math.floor(rng() * 200)) * 3600_000);
+      const id = newBookingId();
+      const ref = newPaymentId();
+      await q.run(
+        `INSERT INTO bookings (id, user_id, show_id, movie_id, hall_id, subtotal, fees, total, payment, payment_status, payment_ref, instrument, view_seat, snapshot, idem_key, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+        id, userId, show.id, show.movieId, show.hallId, subtotal, fees, subtotal + fees, pay.method, pay.status, ref, pay.instrument, seats[0].id, `seed-${id}`, created,
+      );
+      for (const seat of seats) await q.run('INSERT INTO booking_seats (booking_id, show_id, seat_id) VALUES (?, ?, ?)', id, show.id, seat.id);
+      await q.run(
+        'INSERT INTO payments (id, user_id, show_id, amount, method, instrument, status, booking_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ref, userId, show.id, subtotal + fees, pay.method, pay.instrument, pay.status, id, created,
+      );
     }
   });
 }
@@ -634,6 +766,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     limit(req, 'write', 300); // flood guard only; sign-in and reset have tighter limits
   }
   const db = await getDb();
+  await syncSchedule(db);
 
   if (method === 'GET' && path[0] === 'health') {
     await db.get('SELECT 1 AS ok');
@@ -657,6 +790,13 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       g.shows.map((s) => ({ id: s.id, cinemaId: s.cinemaId, screenId: s.screenId, hallId: s.hallId, time: s.time, start: s.start.getTime() })),
     );
     return send(res, 200, { shows });
+  }
+
+  // the admin's changes to the programme, applied by the site on top of the generated showtimes
+  if (method === 'GET' && path[0] === 'schedule') {
+    res.setHeader('Cache-Control', 'no-store');
+    await syncSchedule(db, true);
+    return send(res, 200, { changes: getScheduleChanges() });
   }
 
   if (method === 'GET' && path[0] === 'config') {
@@ -693,12 +833,15 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       if (!isLoopback(req)) throw new ApiError(403, 'local_only', 'Reset is only allowed from the machine running the server.');
       await readJson(req);
       await db.tx(async (q) => {
-        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'users']) {
+        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'users']) {
           await q.run(`DELETE FROM ${table}`);
         }
       });
+      await syncSchedule(db, true);
       const id = await ensureDemoUser(db);
       await seedDemoBookings(db, id);
+      await ensureDemoAdmin(db);
+      await seedDemoCustomers(db);
       addCookie(res, sessionCookie(req, '', 0));
       return send(res, 200, { ok: true, demoEmail: DEMO_USER.email });
     }
@@ -772,9 +915,15 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     if (method === 'POST' && path[1] === 'demo') {
       if (!demoEnabled()) throw new ApiError(404, 'not_found', 'No such endpoint.');
       limit(req, 'demo', 20);
-      await readJson(req);
-      const id = await ensureDemoUser(db);
-      await seedDemoBookings(db, id);
+      const body = await readJson(req);
+      let id: number;
+      if (body.as === 'admin') {
+        id = await ensureDemoAdmin(db);
+        await seedDemoCustomers(db);
+      } else {
+        id = await ensureDemoUser(db);
+        await seedDemoBookings(db, id);
+      }
       await startSession(db, req, res, id);
       return send(res, 200, { user: await loadUser(db, id) });
     }
@@ -1100,25 +1249,269 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       if (show && show.start.getTime() < Date.now()) {
         throw new ApiError(409, 'show_started', 'This show has already started, so the booking can no longer be cancelled.');
       }
-      const seats = await seatsOf(db, row.id);
-      const refunded = row.payment_status === 'paid';
-      await db.tx(async (q) => {
-        await q.run("UPDATE payments SET status = ? WHERE booking_id = ? AND status IN ('paid', 'due')", refunded ? 'refunded' : 'void', row.id);
-        await q.run('DELETE FROM bookings WHERE id = ?', row.id); // booking_seats cascade, freeing the seats
-      });
-      await sendMail(db, req, user.email, 'cancelled', {
-        subject: `Booking ${row.id} cancelled`,
-        heading: 'Your booking is cancelled',
-        lines: [
-          'Your seats have been released.',
-          refunded
-            ? `A refund of ${money(Number(row.total))} to ${row.instrument ?? 'your payment method'} has been started (test mode: no money moved).`
-            : 'Nothing was due, so there is nothing to refund.',
-        ],
-        facts: bookingFacts(row, seats).slice(0, 4),
-      });
+      const refunded = await cancelBooking(db, req, row, user.email, false);
       return send(res, 200, { ok: true, refunded });
     }
+  }
+
+  if (path[0] === 'admin') return adminRoutes(db, req, res, method, path.slice(1), query, await requireAdmin(db, req));
+
+  throw new ApiError(404, 'not_found', 'No such endpoint.');
+}
+
+/* ---------- cinema staff ---------- */
+
+interface AdminBookingRow extends BookingRow {
+  email: string;
+  name: string;
+  seat_count: number;
+}
+
+const ADMIN_BOOKINGS_SQL = `SELECT b.id, b.show_id, b.movie_id, b.hall_id, b.subtotal, b.fees, b.total, b.payment, b.payment_status, b.payment_ref,
+  b.instrument, b.view_seat, b.created_at, u.email, u.name,
+  (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.id) AS seat_count
+  FROM bookings b JOIN users u ON u.id = b.user_id`;
+
+function adminBookingJson(r: AdminBookingRow) {
+  const show = parseShow(r.show_id);
+  const movie = getMovie(r.movie_id);
+  const venue = show ? venueOf(show) : null;
+  return {
+    id: r.id,
+    showId: r.show_id,
+    title: movie?.title ?? r.movie_id,
+    kind: movie?.kind ?? 'movie',
+    cinema: venue?.cinema.name ?? '—',
+    cinemaId: venue?.cinema.id ?? null,
+    screen: venue?.screen.name ?? '—',
+    start: show?.start.getTime() ?? null,
+    seats: Number(r.seat_count),
+    total: Number(r.total),
+    paymentStatus: r.payment_status,
+    instrument: r.instrument,
+    customer: { name: r.name, email: r.email },
+    createdAt: Number(r.created_at),
+  };
+}
+
+const DAY_MS = 24 * 3600_000;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Splits a show id into its parts without checking it against the programme (a cancelled show no longer parses). */
+function showParts(id: string) {
+  const m = /^([a-z0-9-]+)\.(\d{8})\.([a-z0-9-]+)~([a-z0-9-]+)\.(\d{2})(\d{2})$/.exec(id);
+  if (!m) throw bad('invalid_show', 'That is not a show id.');
+  return { movieId: m[1], dateKey: m[2], cinemaId: m[3], screenId: m[4], time: `${m[5]}:${m[6]}` };
+}
+
+async function adminRoutes(db: Database, req: IncomingMessage, res: ServerResponse, method: string, path: string[], query: URLSearchParams, admin: User) {
+  res.setHeader('Cache-Control', 'no-store');
+
+  // headline numbers, the last two weeks of sales, and what sells
+  if (method === 'GET' && path[0] === 'overview') {
+    const rows = (await db.all<AdminBookingRow>(`${ADMIN_BOOKINGS_SQL} ORDER BY b.created_at DESC`)).map(adminBookingJson);
+    const refunds = await db.get<{ n: number; amount: number }>("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS amount FROM payments WHERE status = 'refunded'");
+    const users = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM users');
+    const now = Date.now();
+    const sold = rows.filter((r) => r.paymentStatus === 'paid' || r.paymentStatus === 'due');
+    const startOfToday = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+    const daily = Array.from({ length: 14 }, (_, i) => {
+      const from = startOfToday - (13 - i) * DAY_MS;
+      const inDay = sold.filter((r) => r.createdAt >= from && r.createdAt < from + DAY_MS);
+      return { date: dateKey(new Date(from)), revenue: inDay.reduce((n, r) => n + r.total, 0), bookings: inDay.length, tickets: inDay.reduce((n, r) => n + r.seats, 0) };
+    });
+    const group = (key: (r: (typeof rows)[number]) => string) => {
+      const out = new Map<string, { key: string; bookings: number; tickets: number; revenue: number }>();
+      for (const r of sold) {
+        const k = key(r);
+        const g = out.get(k) ?? { key: k, bookings: 0, tickets: 0, revenue: 0 };
+        g.bookings++;
+        g.tickets += r.seats;
+        g.revenue += r.total;
+        out.set(k, g);
+      }
+      return [...out.values()].sort((a, b) => b.revenue - a.revenue);
+    };
+    return send(res, 200, {
+      totals: {
+        revenue: sold.filter((r) => r.paymentStatus === 'paid').reduce((n, r) => n + r.total, 0),
+        due: sold.filter((r) => r.paymentStatus === 'due').reduce((n, r) => n + r.total, 0),
+        bookings: sold.length,
+        tickets: sold.reduce((n, r) => n + r.seats, 0),
+        upcoming: sold.filter((r) => (r.start ?? 0) > now).length,
+        refunds: Number(refunds?.n ?? 0),
+        refunded: Number(refunds?.amount ?? 0),
+        users: Number(users?.n ?? 0),
+      },
+      daily,
+      byTitle: group((r) => r.title).slice(0, 8),
+      byCinema: group((r) => r.cinema),
+      recent: rows.slice(0, 8),
+    });
+  }
+
+  if (method === 'GET' && path[0] === 'bookings' && !path[1]) {
+    const when = query.get('when') ?? 'upcoming';
+    const q = (query.get('q') ?? '').trim().toLowerCase();
+    const now = Date.now();
+    const rows = (await db.all<AdminBookingRow>(`${ADMIN_BOOKINGS_SQL} ORDER BY b.created_at DESC LIMIT 2000`))
+      .map(adminBookingJson)
+      .filter((r) => (when === 'upcoming' ? (r.start ?? 0) > now : when === 'past' ? (r.start ?? 0) <= now : true))
+      .filter((r) => !q || [r.id, r.title, r.cinema, r.customer.name, r.customer.email].some((f) => f.toLowerCase().includes(q)))
+      .sort((a, b) => (when === 'upcoming' ? (a.start ?? 0) - (b.start ?? 0) : b.createdAt - a.createdAt))
+      .slice(0, 300);
+    return send(res, 200, { bookings: rows });
+  }
+
+  if (method === 'POST' && path[0] === 'bookings' && path[1] && path[2] === 'cancel') {
+    await readJson(req);
+    const row = await db.get<BookingRow & { email: string }>(`SELECT b.*, u.email FROM bookings b JOIN users u ON u.id = b.user_id WHERE b.id = ?`, path[1]);
+    if (!row) throw new ApiError(404, 'booking_not_found', 'We could not find that booking.');
+    const show = parseShow(row.show_id);
+    if (show && show.start.getTime() < Date.now()) throw new ApiError(409, 'show_started', 'This show has already started.');
+    const refunded = await cancelBooking(db, req, row, row.email, true);
+    return send(res, 200, { ok: true, refunded });
+  }
+
+  // one cinema's day: every auditorium's shows, with seats sold and any cancelled ones
+  if (method === 'GET' && path[0] === 'shows') {
+    const cinema = getCinema(query.get('cinema') ?? CINEMAS[0].id);
+    if (!cinema) throw new ApiError(404, 'cinema_not_found', 'No such cinema.');
+    const date = query.get('date') ?? dateKey(new Date());
+    if (!/^\d{8}$/.test(date)) throw bad('invalid_date', 'Use a date like 20261118.');
+    const days = cinema.screens.map((screen) => ({ screen, shows: screenDay(cinema, screen, date) }));
+    const ids = days.flatMap((d) => d.shows.map((x) => x.show.id));
+    const soldRows = ids.length
+      ? await db.all<{ show_id: string; n: number }>(
+          `SELECT show_id, COUNT(*) AS n FROM booking_seats WHERE show_id IN (${ids.map(() => '?').join(', ')}) GROUP BY show_id`,
+          ...ids,
+        )
+      : [];
+    const sold = new Map(soldRows.map((r) => [r.show_id, Number(r.n)]));
+    const now = Date.now();
+    return send(res, 200, {
+      cinema: { id: cinema.id, name: cinema.name },
+      date,
+      screens: days.map(({ screen, shows }) => {
+        const layout = getLayout(screen.hallId);
+        return {
+          id: screen.id,
+          name: screen.name,
+          format: layout.config.format,
+          capacity: layout.seats.length,
+          shows: shows.map(({ show, cancelled, added }) => {
+            const movie = getMovie(show.movieId)!;
+            return {
+              id: show.id,
+              movieId: show.movieId,
+              title: movie.title,
+              kind: movie.kind,
+              time: show.time,
+              runtime: movie.runtime,
+              start: show.start.getTime(),
+              cancelled,
+              added,
+              started: show.start.getTime() <= now,
+              sold: sold.get(show.id) ?? 0,
+            };
+          }),
+        };
+      }),
+    });
+  }
+
+  // schedule an extra show
+  if (method === 'POST' && path[0] === 'shows' && !path[1]) {
+    const body = await readJson(req);
+    const movie = getMovie(String(body.movieId ?? ''));
+    const cinema = getCinema(String(body.cinemaId ?? ''));
+    const screen = cinema?.screens.find((x) => x.id === body.screenId);
+    const date = String(body.date ?? '');
+    const time = String(body.time ?? '');
+    if (!movie) throw bad('invalid_title', 'Choose a movie or live show.');
+    if (!cinema || !screen) throw bad('invalid_screen', 'Choose a cinema and auditorium.');
+    if (!/^\d{8}$/.test(date)) throw bad('invalid_date', 'Choose a date.');
+    if (!TIME.test(time) || time < '08:00') throw bad('invalid_time', 'Choose a start time between 08:00 and 23:59.');
+    const start = new Date(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)), Number(time.slice(0, 2)), Number(time.slice(3)));
+    if (start.getTime() < Date.now() + 30 * 60_000) throw bad('too_soon', 'New shows must start at least 30 minutes from now.');
+    if (start.getTime() > Date.now() + 30 * DAY_MS) throw bad('too_far', 'Schedule shows up to 30 days ahead.');
+    // the auditorium must be free: the new show plus cleaning time can't overlap another
+    const end = start.getTime() + (movie.runtime + 20) * 60_000;
+    const clash = screenDay(cinema, screen, date).find(({ show, cancelled }) => {
+      if (cancelled) return false;
+      const other = getMovie(show.movieId)!;
+      return show.start.getTime() < end && start.getTime() < show.start.getTime() + (other.runtime + 20) * 60_000;
+    });
+    if (clash) {
+      throw new ApiError(409, 'screen_busy', `${screen.name} is showing ${getMovie(clash.show.movieId)!.title} at ${clash.show.time}. Pick a time when the auditorium is free.`);
+    }
+    const restored = await db.run(
+      "DELETE FROM schedule_changes WHERE action = 'cancel' AND movie_id = ? AND cinema_id = ? AND screen_id = ? AND date_key = ? AND time = ?",
+      movie.id, cinema.id, screen.id, date, time,
+    );
+    if (!restored) {
+      await db.run(
+        'INSERT INTO schedule_changes (action, movie_id, cinema_id, screen_id, date_key, time, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'add', movie.id, cinema.id, screen.id, date, time, admin.id, Date.now(),
+      );
+    }
+    await syncSchedule(db, true);
+    return send(res, 201, { ok: true, showId: `${movie.id}.${date}.${cinema.id}~${screen.id}.${time.replace(':', '')}` });
+  }
+
+  // cancel a show: its bookings are cancelled and refunded first
+  if (method === 'POST' && path[0] === 'shows' && path[1] === 'cancel') {
+    const body = await readJson(req);
+    const show = parseShow(String(body.showId ?? ''));
+    if (!show) throw new ApiError(404, 'show_not_found', 'That show is not on the programme.');
+    if (show.start.getTime() <= Date.now()) throw new ApiError(409, 'show_started', 'This show has already started.');
+    const bookings = await db.all<BookingRow & { email: string }>('SELECT b.*, u.email FROM bookings b JOIN users u ON u.id = b.user_id WHERE b.show_id = ?', show.id);
+    for (const row of bookings) await cancelBooking(db, req, row, row.email, true);
+    await db.run('DELETE FROM holds WHERE show_id = ?', show.id);
+    const dropped = await db.run(
+      "DELETE FROM schedule_changes WHERE action = 'add' AND movie_id = ? AND cinema_id = ? AND screen_id = ? AND date_key = ? AND time = ?",
+      show.movieId, show.cinemaId, show.screenId, show.dateKey, show.time,
+    );
+    if (!dropped) {
+      await db.run(
+        'INSERT INTO schedule_changes (action, movie_id, cinema_id, screen_id, date_key, time, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'cancel', show.movieId, show.cinemaId, show.screenId, show.dateKey, show.time, admin.id, Date.now(),
+      );
+    }
+    await syncSchedule(db, true);
+    return send(res, 200, { ok: true, cancelledBookings: bookings.length });
+  }
+
+  // put a cancelled show back on sale
+  if (method === 'POST' && path[0] === 'shows' && path[1] === 'restore') {
+    const body = await readJson(req);
+    const p = showParts(String(body.showId ?? ''));
+    const n = await db.run(
+      "DELETE FROM schedule_changes WHERE action = 'cancel' AND movie_id = ? AND cinema_id = ? AND screen_id = ? AND date_key = ? AND time = ?",
+      p.movieId, p.cinemaId, p.screenId, p.dateKey, p.time,
+    );
+    if (!n) throw new ApiError(404, 'not_cancelled', 'That show isn’t cancelled.');
+    await syncSchedule(db, true);
+    return send(res, 200, { ok: true });
+  }
+
+  if (method === 'GET' && path[0] === 'users') {
+    const rows = await db.all<UserRow & { bookings: number; spent: number }>(
+      `SELECT ${USER_COLS}, (SELECT COUNT(*) FROM bookings b WHERE b.user_id = u.id) AS bookings,
+        (SELECT COALESCE(SUM(b.total), 0) FROM bookings b WHERE b.user_id = u.id) AS spent
+       FROM users u ORDER BY u.created_at DESC LIMIT 500`,
+    );
+    return send(res, 200, { users: rows.map((r) => ({ ...userJson(r), bookings: Number(r.bookings), spent: Number(r.spent) })) });
+  }
+
+  if (method === 'PATCH' && path[0] === 'users' && path[1]) {
+    const body = await readJson(req);
+    const role = body.role === 'admin' ? 'admin' : body.role === 'user' ? 'user' : null;
+    if (!role) throw bad('invalid_role', 'Choose user or admin.');
+    if (Number(path[1]) === admin.id) throw new ApiError(409, 'own_role', 'You can’t change your own role.');
+    const n = await db.run('UPDATE users SET role = ? WHERE id = ?', role, Number(path[1]));
+    if (!n) throw new ApiError(404, 'user_not_found', 'No such account.');
+    return send(res, 200, { user: await loadUser(db, Number(path[1])) });
   }
 
   throw new ApiError(404, 'not_found', 'No such endpoint.');

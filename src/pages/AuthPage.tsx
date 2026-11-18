@@ -81,12 +81,12 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     }
   };
 
-  const useDemo = async () => {
+  const useDemo = async (as: 'user' | 'admin') => {
     setFailure(null);
     setBusy(true);
     try {
-      setUser(await api.demoLogin());
-      navigate(next, { replace: true });
+      setUser(await api.demoLogin(as));
+      navigate(as === 'admin' && next === '/' ? '/admin' : next, { replace: true });
     } catch (err) {
       setFailure(errorMessage(err));
       setBusy(false);
@@ -208,8 +208,11 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             <div className="auth-or" role="separator">
               or
             </div>
-            <button type="button" className="btn btn-secondary btn-lg btn-block" onClick={useDemo} disabled={busy}>
+            <button type="button" className="btn btn-secondary btn-lg btn-block" onClick={() => useDemo('user')} disabled={busy}>
               Continue With Demo Account
+            </button>
+            <button type="button" className="btn btn-text btn-block auth-admin" onClick={() => useDemo('admin')} disabled={busy}>
+              Cinema staff? Sign in as the demo admin
             </button>
           </>
         ) : null}

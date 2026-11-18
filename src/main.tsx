@@ -7,11 +7,15 @@ import '@fontsource-variable/playfair-display/wght-italic.css';
 import './styles.css';
 import App from './App';
 import { loadArtFonts } from './lib/art';
+import { api } from './lib/api';
+import { setScheduleChanges } from './data/movies';
 
 const root = createRoot(document.getElementById('root')!);
 
-// the posters are painted on canvas, so make sure their typefaces are ready first
-loadArtFonts().finally(() => {
+// the posters are painted on canvas, so make sure their typefaces are ready first, and
+// apply the cinema's schedule changes before any showtimes are listed (without waiting long)
+const schedule = api.schedule().then(setScheduleChanges).catch(() => {});
+Promise.all([loadArtFonts(), Promise.race([schedule, new Promise((ok) => setTimeout(ok, 1500))])]).finally(() => {
   root.render(
     <HashRouter>
       <App />

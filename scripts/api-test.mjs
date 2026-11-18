@@ -371,6 +371,81 @@ check('deletion is confirmed by email', r.data.emails.some((e) => e.kind === 'de
 r = await anon('POST', '/auth/signup', { name: 'Bob Returns', email: mail(2), password: PW });
 check('the email can be used again after deletion', r.status === 201 || r.status === 429, String(r.status));
 
+// live shows play in the same auditoriums
+let liveShows = 0;
+for (let i = 0; i < 7 && !liveShows; i++) {
+  const day = new Date(Date.now() + i * 86400000);
+  const k = `${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, '0')}${String(day.getDate()).padStart(2, '0')}`;
+  for (const id of ['delhi-comedy-night', 'bollywood-live', 'jazz-after-dark', 'the-last-train-from-daryaganj']) {
+    liveShows += (await anon('GET', `/movies/${id}/shows?date=${k}`)).data.shows.length;
+  }
+}
+check('live shows are on the programme', liveShows > 0);
+
+// cinema staff
+const cust = client();
+await cust('POST', '/auth/demo', {}); // sign-up is rate limited by now, so use the demo customer
+r = await anon('GET', '/admin/overview');
+check('admin pages need sign-in', r.status === 401);
+r = await cust('GET', '/admin/overview');
+check('a customer cannot open the admin pages', r.status === 403 && r.data.error.code === 'admin_only');
+const staff = client();
+r = await staff('POST', '/auth/demo', { as: 'admin' });
+check('demo admin signs in with the admin role', r.status === 200 && r.data.user.role === 'admin', JSON.stringify(r.data));
+r = await staff('GET', '/admin/overview');
+check('admin overview reports sales', r.status === 200 && r.data.totals.bookings > 0 && r.data.daily.length === 14, JSON.stringify(r.data).slice(0, 200));
+r = await staff('GET', '/admin/bookings?when=all');
+check('admin lists every customer’s bookings', r.status === 200 && new Set(r.data.bookings.map((x) => x.customer.email)).size > 1);
+
+r = await staff('GET', `/admin/shows?cinema=pvr-plaza&date=${key}`);
+const audi = r.data.screens?.[0];
+const first = audi?.shows.find((x) => !x.cancelled);
+check('admin sees one cinema’s day by auditorium', r.status === 200 && audi?.shows.length > 2 && !!first, JSON.stringify(r.data).slice(0, 200));
+r = await staff('POST', '/admin/shows/cancel', { showId: first.id });
+check('admin cancels a show', r.status === 200, JSON.stringify(r.data));
+r = await anon('GET', `/movies/${first.movieId}/shows?date=${key}`);
+check('a cancelled show leaves the public listing', !r.data.shows.some((x) => x.id === first.id));
+r = await cust('POST', `/shows/${first.id}/hold`, { seats: ['A1'] });
+check('a cancelled show cannot be booked', r.status === 404);
+r = await anon('GET', '/schedule');
+check('the schedule feed lists the change', r.data.changes.some((x) => x.action === 'cancel' && x.time === first.time));
+r = await staff('POST', '/admin/shows/restore', { showId: first.id });
+r = await anon('GET', `/movies/${first.movieId}/shows?date=${key}`);
+check('a restored show is back on sale', r.data.shows.some((x) => x.id === first.id));
+
+await staff('POST', '/admin/shows/cancel', { showId: first.id });
+const next = audi.shows.find((x) => x.time > first.time && !x.cancelled);
+r = await staff('POST', '/admin/shows', { movieId: 'delhi-comedy-night', cinemaId: 'pvr-plaza', screenId: audi.id, date: key, time: next.time });
+check('a show that clashes with another is refused', r.status === 409 && r.data.error.code === 'screen_busy', JSON.stringify(r.data));
+r = await staff('POST', '/admin/shows', { movieId: 'delhi-comedy-night', cinemaId: 'pvr-plaza', screenId: audi.id, date: key, time: first.time });
+check('admin adds a live show in the free slot', r.status === 201, JSON.stringify(r.data));
+const added = r.data.showId;
+r = await anon('GET', `/movies/delhi-comedy-night/shows?date=${key}`);
+check('the added show is on sale', r.data.shows.some((x) => x.id === added));
+r = await cust('POST', `/shows/${added}/hold`, { seats: ['K8', 'K9'] });
+r = await cust('POST', '/bookings', { showId: added, seats: ['K8', 'K9'], payment: { method: 'upi', upiId: 'chitra@bank' }, idempotencyKey: 'chitra-added-show' });
+check('a customer books the added show', r.status === 201, JSON.stringify(r.data));
+r = await staff('POST', '/admin/shows/cancel', { showId: added });
+check('cancelling a show cancels its bookings', r.status === 200 && r.data.cancelledBookings === 1, JSON.stringify(r.data));
+r = await cust('GET', '/bookings');
+check('the customer’s booking is gone', !r.data.bookings.some((x) => x.showId === added));
+r = await anon('GET', '/demo/outbox');
+check('the customer is told the cinema cancelled', r.data.emails.some((e) => e.kind === 'cancelled' && e.to === 'demo@sightline.test' && e.html.includes('cinema has cancelled')));
+
+r = await staff('GET', '/admin/users');
+const chitra = r.data.users?.find((u) => u.email === 'demo@sightline.test');
+const me = r.data.users?.find((u) => u.role === 'admin');
+check('admin lists accounts with their bookings', r.status === 200 && !!chitra && typeof chitra.bookings === 'number');
+r = await staff('PATCH', `/admin/users/${me.id}`, { role: 'user' });
+check('an admin cannot change their own role', r.status === 409);
+r = await staff('PATCH', `/admin/users/${chitra.id}`, { role: 'admin' });
+check('admin promotes a customer', r.status === 200 && r.data.user.role === 'admin');
+r = await cust('GET', '/admin/overview');
+check('the promoted account can open the admin pages', r.status === 200);
+await staff('PATCH', `/admin/users/${chitra.id}`, { role: 'user' });
+r = await cust('GET', '/admin/overview');
+check('and loses access when demoted', r.status === 403);
+
 // brute-force limit
 let limited = false;
 for (let i = 0; i < 14; i++) {
