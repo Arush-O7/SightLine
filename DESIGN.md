@@ -299,15 +299,12 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ### Home Hero
 - The live 3D hall fills the first screen, playing the lead movie with its real poster on the screen, placed right of centre so it stays clear of the headline. The camera flies in once, then glides slowly from seat to seat (the best seat, an off-centre seat, the back row, near the front).
-- Left: the Marquee Hero headline, capped at about five of its own letter-widths so it wraps to three lines and never covers the poster; one sentence on how it works; Browse Movies (Primary) and Explore Cinemas (Glass); then one quiet line with an Available dot naming the seat the camera is in, its cinema and its view score. No panel or card sits over the hall.
+- Left: the Marquee Hero headline, capped at about five of its own letter-widths so it wraps to three lines and never covers the poster; one sentence on how it works; then Browse Movies (Primary) and Explore Cinemas (Glass). Nothing else sits over the hall: no panel, card or caption.
 - The headline and sentence rise in once on load (reduced motion: no movement). A scrim darkens the left for the copy and fades into the page at the bottom.
 - Under 860px the hall gets its own frame at the top, about half the screen tall, and the headline overlaps its lower edge.
 
 ### Seat Comparison
-- "Same hall, two seats": two cards side by side (stacked on phones), each a real render of the same large-screen auditorium with the house lights up, one from the front row and one from the best seat. Below each render, never over it: the view score as a large marquee number (Paper for the front row, Tungsten for the best seat), a small label ("Front row", "Best seat" in Tungsten), the seat name, its distance and head tilt, and a small Hall Plan with that seat marked. The plan is dropped on narrow phones.
-
-### Hall Plan
-- A small static plan drawn from a hall's real geometry: the screen as a thin Paper arc, every seat as a Seat Free square, and one marked seat (Paper, or Tungsten for the best seat). Used only in the Seat Comparison, beside text that states the same facts.
+- "Same hall, two seats": two real renders of the same large-screen auditorium with the house lights up, side by side (stacked on phones): first from the front row, then from the best seat. The images stand alone in rounded frames with a hairline border; the sentence above says which is which. No caption, overlay or score on the images.
 
 ### Cinema Tiles
 - On the home page all eight cinemas sit in a 4 by 2 grid of 4:3 photo tiles (2 columns on tablets and phones), each a link: the photo, a dark fade at the bottom, the name in marquee capitals and the area beneath. Stand-in photos keep their "Representative photo" pill. The photo zooms 4% on hover.

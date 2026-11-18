@@ -11,7 +11,7 @@ interface Props {
   occupied: Set<string>;
   /** seats to visit, in order */
   tour: Seat[];
-  onSeat: (seat: Seat) => void;
+  onSeat?: (seat: Seat) => void;
   onReady: () => void;
 }
 
@@ -56,7 +56,7 @@ export default function HeroHall({ layout, movie, occupied, tour, onSeat, onRead
       if (!visible || document.hidden) return;
       const seat = tour[step % tour.length];
       scene.enterSeatView(seat.id, GLIDE);
-      cb.current.onSeat(seat);
+      cb.current.onSeat?.(seat);
       step += 1;
       if (reduced) return; // one still seat view, no tour
       timer = window.setTimeout(next, HOLD_SEAT);

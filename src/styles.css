@@ -902,26 +902,8 @@ span.actions { display: flex; justify-content: flex-end; }
 
 /* the same hall from two seats */
 .cmp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.cmp-card { margin: 0; display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); }
-.cmp-card > img { display: block; width: 100%; height: auto; aspect-ratio: 1780 / 980; object-fit: cover; }
-.cmp-body { display: grid; grid-template-columns: auto minmax(0, 1fr) 132px; align-items: center; gap: 18px; padding: 20px 22px 22px; border-top: 1px solid var(--line); }
-.cmp-score { font-family: var(--font-display); font-weight: 800; font-size: 68px; line-height: 0.8; font-variant-numeric: tabular-nums; min-width: 1.5ch; }
-.is-best .cmp-score { color: var(--accent); }
-.cmp-text { display: grid; gap: 3px; font-size: 14px; line-height: 1.45; color: var(--muted); }
-.cmp-label { font-size: 13px; color: var(--faint); }
-.is-best .cmp-label { color: var(--accent); }
-.cmp-text b { font-size: 16px; font-weight: 600; color: var(--text); }
-.hall-plan { display: block; width: 100%; height: auto; }
-.hall-plan rect { fill: var(--seat-free); }
-.hall-plan rect.on { fill: var(--text); }
-.is-best .hall-plan rect.on { fill: var(--accent); }
-.hall-plan-screen { stroke: rgba(255, 255, 255, 0.7); stroke-width: 0.9; }
+.cmp img { display: block; width: 100%; height: auto; aspect-ratio: 1780 / 980; object-fit: cover; border-radius: 18px; border: 1px solid var(--line); background: var(--bg-2); }
 
-/* the line under the hero buttons naming the seat the camera is in */
-.hx-now { display: flex; align-items: center; gap: 8px; margin-top: 26px; font-size: 14px; color: rgba(236, 235, 231, 0.72); opacity: 0; transition: opacity 0.4s ease; }
-.hx-now.on { opacity: 1; }
-.hx-now b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.hx-now-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--available); }
 
 /* cinemas as photo tiles */
 .ct-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -949,9 +931,6 @@ span.actions { display: flex; justify-content: flex-end; }
   .cmp { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) {
-  .cmp-body { grid-template-columns: auto minmax(0, 1fr); }
-  .cmp-plan { display: none; }
-  .cmp-score { font-size: 52px; }
   .ct-text b { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .hx-title, .hx-lede { animation: none; } }

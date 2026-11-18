@@ -74,20 +74,18 @@ def run() -> None:
 
         def live_hall():
             # the 3D hall loads after the page and starts its tour
-            expect(page.locator(".home-hero-live.on")).to_contain_text("view score", timeout=20000)
+            expect(page.locator(".hx-still.off")).to_have_count(1, timeout=20000)
             expect(page.locator(".hero-hall canvas")).to_have_count(1)
 
         check("home: the live 3D hall starts", live_hall)
 
         def seat_comparison():
-            cards = page.locator(".cmp-card")
-            expect(cards).to_have_count(2)
-            scores = [int(cards.nth(i).locator(".cmp-score").inner_text()) for i in range(2)]
-            assert scores[1] > scores[0], f"the best seat should outscore the front row: {scores}"
-            page.wait_for_function("[...document.querySelectorAll('.cmp-card img')].every(i => i.naturalWidth > 0 || i.loading === 'lazy')")
-            expect(cards.nth(1).locator(".hall-plan rect.on")).to_have_count(1)
+            shots = page.locator(".cmp img")
+            expect(shots).to_have_count(2)
+            shots.nth(1).scroll_into_view_if_needed()
+            page.wait_for_function("[...document.querySelectorAll('.cmp img')].every(i => i.complete && i.naturalWidth > 0)", timeout=15000)
 
-        check("home: the two-seat comparison shows both scores", seat_comparison)
+        check("home: the two-seat comparison shows both views", seat_comparison)
 
         def language_filter():
             page.get_by_role("button", name="Tamil", exact=True).click()

@@ -4,7 +4,6 @@ import { Search } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
 import EventCard from '../components/EventCard';
 import MovieCard from '../components/MovieCard';
-import HallPlan from '../components/HallPlan';
 import { CINEMAS } from '../data/cinemas';
 import { sized } from '../data/photos';
 import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
@@ -37,8 +36,6 @@ function tourSeats(layout: HallLayout, taken: Set<string>): Seat[] {
   return [layout.byId.get(layout.bestSeatId)!, free(Math.floor(g.length * 0.55), 1), free(g.length - 1, middle(g.length - 1)), free(front, middle(front))];
 }
 
-const tilt = (deg: number) => `${Math.abs(Math.round(deg))}° ${deg >= 0 ? 'up' : 'down'}`;
-
 export default function Home() {
   useTitle();
   const [params, setParams] = useSearchParams();
@@ -66,15 +63,7 @@ export default function Home() {
   const heroTaken = useMemo(() => (heroShow ? crowdFor(heroShow, heroLayout) : new Set<string>()), [heroShow, heroLayout]);
   const tour = useMemo(() => tourSeats(heroLayout, heroTaken), [heroLayout, heroTaken]);
   const heroVenue = heroShow ? venueOf(heroShow) : null;
-  const [seat, setSeat] = useState<Seat | null>(null);
   const [live, setLive] = useState(false);
-
-  // the two seats compared further down, in the same large-screen auditorium
-  const big = getLayout('h2');
-  const front = big.byId.get('C11')!;
-  const best = big.byId.get(big.bestSeatId)!;
-  const fm = big.metrics[front.index];
-  const bm = big.metrics[best.index];
 
   const cinemaCount = (movieId: string) => new Set(showsFor(MOVIES.find((x) => x.id === movieId)!, today).map((g) => g.cinemaId)).size;
   const needle = query.trim().toLowerCase();
@@ -95,7 +84,6 @@ export default function Home() {
               movie={featured}
               occupied={heroTaken}
               tour={tour}
-              onSeat={setSeat}
               onReady={() => setLive(true)}
             />
           </Suspense>
@@ -123,19 +111,6 @@ export default function Home() {
                 Explore Cinemas
               </Link>
             </div>
-            {heroVenue ? (
-              <p className={`hx-now home-hero-live ${live && seat ? 'on' : ''}`} aria-live="polite">
-                <span className="hx-now-dot" aria-hidden="true" />
-                {seat ? (
-                  <>
-                    Live from Row {seat.rowLabel}, Seat {seat.number} at {heroVenue.cinema.name}: view score{' '}
-                    <b>{Math.round(heroLayout.metrics[seat.index].score)}</b>
-                  </>
-                ) : (
-                  'Loading the hall'
-                )}
-              </p>
-            ) : null}
           </div>
 
         </div>
@@ -195,33 +170,28 @@ export default function Home() {
               Same hall, two seats
             </h2>
             <p className="muted hs-lede">
-              A seat map tells you where you’ll sit. SightLine shows what you’ll see from there, from a camera placed at seated eye level in a
-              hall built to scale.
+              A seat map tells you where you’ll sit. SightLine shows what you’ll see from there: first from the front row, then from the
+              best seat in the house.
             </p>
           </div>
         </div>
         <div className="cmp">
-          {[
-            { key: 'front', label: 'Front row', seat: front, metrics: fm, img: '/home/front-row.jpg', alt: 'The screen seen from front-row seat C11: it towers above you and spills past both edges of your view' },
-            { key: 'best', label: 'Best seat', seat: best, metrics: bm, img: '/home/best-seat.jpg', alt: 'The screen seen from seat M11: the whole picture sits at eye level, framed by the hall' },
-          ].map((c) => (
-            <figure key={c.key} className={`cmp-card ${c.key === 'best' ? 'is-best' : ''}`}>
-              <img src={c.img} width={1780} height={980} loading="lazy" decoding="async" alt={c.alt} />
-              <figcaption className="cmp-body">
-                <span className="cmp-score">{Math.round(c.metrics.score)}</span>
-                <span className="cmp-text">
-                  <span className="cmp-label">{c.label}</span>
-                  <b>
-                    Row {c.seat.rowLabel}, Seat {c.seat.number}
-                  </b>
-                  <span>
-                    {c.metrics.distance.toFixed(1)} m from the screen, head tilted {tilt(c.metrics.elevation)}
-                  </span>
-                </span>
-                <HallPlan layout={big} highlight={c.seat.id} className="cmp-plan" />
-              </figcaption>
-            </figure>
-          ))}
+          <img
+            src="/home/front-row.jpg"
+            width={1780}
+            height={980}
+            loading="lazy"
+            decoding="async"
+            alt="The screen seen from the front row, seat C11: it towers above you and spills past both edges of your view"
+          />
+          <img
+            src="/home/best-seat.jpg"
+            width={1780}
+            height={980}
+            loading="lazy"
+            decoding="async"
+            alt="The screen seen from the best seat, M11: the whole picture sits at eye level, framed by the hall"
+          />
         </div>
       </section>
 
