@@ -1,14 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
-import { Backdrop } from '../components/Art';
+import { Backdrop, Poster } from '../components/Art';
 import CinemaCard from '../components/CinemaCard';
 import EventCard from '../components/EventCard';
 import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
 import SeatDetails from '../components/SeatDetails';
 import { CINEMAS } from '../data/cinemas';
-import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
+import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
 import { useTitle } from '../lib/useTitle';
@@ -154,21 +154,29 @@ export default function Home() {
             {MOVIES.length} movies · {EVENTS.length} live shows · {CINEMAS.length} cinemas in Delhi
           </p>
         </div>
-        {heroVenue ? (
-          <div className={`home-hero-live ${live ? 'on' : ''}`} aria-live="polite">
-            <span className="home-hero-live-dot" aria-hidden="true" />
-            <span>
-              {liveSeat ? (
-                <>
-                  Row {liveSeat.rowLabel}, Seat {liveSeat.number} · view score <b>{Math.round(heroLayout.metrics[liveSeat.index].score)}</b>
-                </>
-              ) : (
-                'Whole hall'
-              )}
-            </span>
-            <span className="home-hero-live-venue">
-              {heroVenue.cinema.name} · {heroVenue.screen.name}
-            </span>
+        {heroVenue && heroShow ? (
+          <div className={`home-hero-live ${live ? 'on' : ''}`}>
+            <Link to={`/movie/${featured.id}`} className="home-hero-live-poster" aria-label={`${featured.title}: showtimes`}>
+              <Poster movie={featured} eager />
+            </Link>
+            <div className="home-hero-live-text" aria-live="polite">
+              <span className="home-hero-live-label">
+                <span className="home-hero-live-dot" aria-hidden="true" /> Live 3D preview
+              </span>
+              <b className="home-hero-live-title">{featured.title}</b>
+              <span>
+                {liveSeat ? (
+                  <>
+                    Row {liveSeat.rowLabel}, Seat {liveSeat.number} · view score <b>{Math.round(heroLayout.metrics[liveSeat.index].score)}</b>
+                  </>
+                ) : (
+                  'Whole hall'
+                )}
+              </span>
+              <span className="home-hero-live-venue">
+                {heroVenue.cinema.name} · {heroVenue.screen.name}
+              </span>
+            </div>
           </div>
         ) : null}
       </section>
@@ -265,7 +273,7 @@ export default function Home() {
         <div className="section-head">
           <div>
             <h2>Cinemas in Delhi</h2>
-            <p className="muted">From Saket to Connaught Place. Each card shows the plan of its biggest auditorium.</p>
+            <p className="muted">From Saket to Connaught Place and Dwarka, every auditorium rebuilt in 3D.</p>
           </div>
           <Link to="/cinemas" className="btn btn-secondary">
             All Cinemas
@@ -278,12 +286,25 @@ export default function Home() {
         </div>
         {heroShow ? (
           <div className="home-close">
-            <p>
-              {featured.title} is playing next at {heroVenue?.cinema.name}, {formatTime(heroShow.start)}.
-            </p>
-            <Link className="btn btn-primary btn-lg" to={`/movie/${featured.id}`}>
-              Book Tickets
+            <Backdrop movie={featured} className="home-close-bg" />
+            <div className="home-close-scrim" />
+            <Link to={`/movie/${featured.id}`} className="home-close-poster" tabIndex={-1} aria-hidden="true">
+              <Poster movie={featured} />
             </Link>
+            <div className="home-close-copy">
+              <h2>{featured.title}</h2>
+              <p>
+                Playing next at {heroVenue?.cinema.name}, {heroShow.dateKey === today ? 'today' : formatDate(heroShow.start)} at {formatTime(heroShow.start)}. Pick your seat in 3D before you pay.
+              </p>
+              <div className="home-close-cta">
+                <Link className="btn btn-primary btn-lg" to={`/movie/${featured.id}`}>
+                  Book Tickets
+                </Link>
+                <Link className="btn btn-glass btn-lg" to="/events">
+                  Browse Live Shows
+                </Link>
+              </div>
+            </div>
           </div>
         ) : null}
       </section>

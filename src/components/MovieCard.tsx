@@ -15,7 +15,7 @@ export default function MovieCard({ movie, cinemas }: { movie: Movie; cinemas?: 
       </div>
       <h3>{movie.title}</h3>
       <p className="movie-card-meta">
-        {movie.language} · {movie.genres.slice(0, 2).join(', ')}
+        {movie.language} · {movie.genres[0]}
       </p>
       <p className="movie-card-meta">
         {formatRuntime(movie.runtime)}

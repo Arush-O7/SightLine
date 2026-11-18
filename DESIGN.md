@@ -295,7 +295,8 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ### Home Hero
 - The live 3D auditorium fills the first screen: a large-screen hall playing the lead movie, which flies into a seat, holds it, pulls back to the whole hall and moves on to the next seat. The movie's backdrop sits behind it as a still until the 3D is ready, and stays when WebGL is missing; under reduced motion the hall holds one seat view.
-- Over it, bottom-left: the product line (h1, Hero size), one sentence on how the site works, Browse Movies (Primary) and Explore Cinemas (Glass), then a Muted facts line. Bottom-right, a translucent caption pill names the current seat, its view score and the cinema and auditorium, with an Available dot. A scrim keeps the copy legible over the hall.
+- Over it, bottom-left: the product line (h1, Hero size), one sentence on how the site works, Browse Movies (Primary) and Explore Cinemas (Glass), then a Muted facts line. Bottom-right, a translucent card shows the lead movie's poster beside "Live 3D preview" (with an Available dot), the title, the current seat and its view score, and the cinema and auditorium; it slides up once the hall is ready. Below the hero, the movies sit in one row of seven posters on wide screens (four, three, then two columns as the screen narrows).
+- The page ends on a closing band: a rounded card with the lead movie's blurred poster behind a left-to-right scrim, the sharp poster, its title at Statement size, when and where it plays next, and Book Tickets with Browse Live Shows. A scrim keeps the copy legible over the hall.
 
 ### Movie Card
 - The poster at 2:3 with a small "New this week" tag in its corner for releases under a week old, then the title at Title size and two Muted lines: language and two genres, then runtime and how many cinemas show it today. The whole card links to the movie.
