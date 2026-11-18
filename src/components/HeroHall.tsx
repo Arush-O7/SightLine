@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { HallScene } from '../three/HallScene';
-import { paintArt } from '../lib/art';
+import { paintArt, paintPhoto } from '../lib/art';
+import { screenPhoto } from '../lib/screenPhoto';
 import type { HallLayout, Seat } from '../lib/hall';
 import type { Movie } from '../data/movies';
 
@@ -27,12 +28,17 @@ export default function HeroHall({ layout, movie, occupied, tour, onSeat, onRead
     const mount = mountRef.current;
     if (!mount || !tour.length) return;
     let scene: HallScene;
+    let art: HTMLCanvasElement;
+    let live = true;
     try {
       const s = layout.config.screen;
-      scene = new HallScene(mount, layout, paintArt(movie, 'backdrop', 1792, 1792 / (s.width / s.height)));
+      art = paintArt(movie, 'backdrop', 1792, 1792 / (s.width / s.height));
+      scene = new HallScene(mount, layout, art);
     } catch {
       return; // no WebGL: the still backdrop behind stays visible
     }
+    const photo = screenPhoto(movie);
+    if (photo) void paintPhoto(art, photo).then((ok) => ok && live && scene.refreshScreen());
     scene.setSeatState({ occupied, selected: new Set(), focusId: null, heatmap: false });
     scene.setAudience(true);
     scene.setLights('movie');
@@ -72,6 +78,7 @@ export default function HeroHall({ layout, movie, occupied, tour, onSeat, onRead
     io.observe(mount);
 
     return () => {
+      live = false;
       window.clearTimeout(timer);
       io.disconnect();
       scene.dispose();

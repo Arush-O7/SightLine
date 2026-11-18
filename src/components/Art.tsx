@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { artUrl } from '../lib/art';
 import { useStore } from '../lib/store';
+import { sized } from '../data/photos';
 import type { Movie } from '../data/movies';
 
-/** The official poster when the server has one, otherwise artwork painted for the movie. */
+/** The official poster when the server has one, a live show's photo, otherwise artwork painted for the movie. */
 export function Poster({ movie, className = '', eager = false }: { movie: Movie; className?: string; eager?: boolean }) {
-  const official = useStore((s) => s.media[movie.id]?.poster ?? null);
+  const tmdb = useStore((s) => s.media[movie.id]?.poster ?? null);
+  const official = tmdb ?? (movie.photo ? sized(movie.photo, 960) : null);
   const [broken, setBroken] = useState(false);
   const painted = useMemo(() => (official && !broken ? '' : artUrl(movie, 'poster')), [movie, official, broken]);
   return (
@@ -16,7 +18,7 @@ export function Poster({ movie, className = '', eager = false }: { movie: Movie;
       height={840}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
-      alt={`${movie.title} poster`}
+      alt={movie.photo && !tmdb ? '' : `${movie.title} poster`}
       draggable={false}
       onError={() => setBroken(true)}
     />
@@ -24,7 +26,8 @@ export function Poster({ movie, className = '', eager = false }: { movie: Movie;
 }
 
 export function Backdrop({ movie, className = '', priority = false }: { movie: Movie; className?: string; priority?: boolean }) {
-  const official = useStore((s) => s.media[movie.id]?.backdrop ?? null);
+  const tmdb = useStore((s) => s.media[movie.id]?.backdrop ?? null);
+  const official = tmdb ?? (movie.photo ? movie.photo.src : null);
   const [broken, setBroken] = useState(false);
   const painted = useMemo(() => (official && !broken ? '' : artUrl(movie, 'backdrop')), [movie, official, broken]);
   return (

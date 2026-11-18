@@ -156,6 +156,11 @@ export class HallScene {
   private white = new THREE.Color('#ffffff');
   private dummy = new THREE.Object3D();
 
+  /** Call after drawing new art onto the screen canvas passed to the constructor. */
+  refreshScreen() {
+    this.screenTex.needsUpdate = true;
+  }
+
   constructor(container: HTMLElement, layout: HallLayout, screenImage: HTMLCanvasElement, events: HallSceneEvents = {}) {
     this.container = container;
     this.layout = layout;

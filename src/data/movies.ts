@@ -2,11 +2,20 @@ import { hashString, mulberry32 } from '../lib/rng.js';
 import type { HallLayout } from '../lib/hall';
 import type { SceneKind } from '../lib/art';
 import { CINEMAS, getCinema, type Cinema, type Screen } from './cinemas.js';
+import { PHOTOS, type Photo } from './photos.js';
 
+export type Kind = 'movie' | 'comedy' | 'music' | 'sports' | 'theatre';
+
+export const KIND_LABEL: Record<Kind, string> = { movie: 'Movie', comedy: 'Comedy', music: 'Music', sports: 'Sports', theatre: 'Theatre' };
+
+/** Anything that plays in an auditorium: a movie or a live show. */
 export interface Movie {
   id: string;
+  kind: Kind;
   /** The Movie Database id, used to load the official poster when a TMDB key is set */
-  tmdbId: number;
+  tmdbId?: number;
+  /** a live show's photo; movies use TMDB artwork or painted art */
+  photo?: Photo;
   title: string;
   tagline: string;
   genres: string[];
@@ -28,6 +37,7 @@ export interface Movie {
 export const MOVIES: Movie[] = [
   {
     id: 'ramayana-rise-of-a-legend',
+    kind: 'movie',
     tmdbId: 656908,
     title: 'Ramayana: Rise of a Legend',
     tagline: 'Part one of the epic',
@@ -46,6 +56,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'drishyam-the-conclusion',
+    kind: 'movie',
     tmdbId: 1269325,
     title: 'Drishyam: The Conclusion',
     tagline: 'The last chapter of the case',
@@ -64,6 +75,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'jailer-2',
+    kind: 'movie',
     tmdbId: 1234139,
     title: 'Jailer 2',
     tagline: 'Tiger is back',
@@ -82,6 +94,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'prahaar',
+    kind: 'movie',
     tmdbId: 1081010,
     title: 'Prahaar: The Untold Story of Ujjwal Nikam',
     tagline: 'The prosecutor who took on 26/11',
@@ -99,6 +112,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'i-play-rocky',
+    kind: 'movie',
     tmdbId: 1286656,
     title: 'I Play Rocky',
     tagline: 'He wrote it. He had to play it.',
@@ -116,6 +130,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'wildwood',
+    kind: 'movie',
     tmdbId: 791523,
     title: 'Wildwood',
     tagline: 'From the makers of Coraline',
@@ -133,6 +148,7 @@ export const MOVIES: Movie[] = [
   },
   {
     id: 'the-cat-in-the-hat',
+    kind: 'movie',
     tmdbId: 1117898,
     title: 'The Cat in the Hat',
     tagline: 'A very rainy day',
@@ -150,10 +166,139 @@ export const MOVIES: Movie[] = [
   },
 ];
 
+// Live shows staged in the cinemas' auditoriums. These are illustrative: the
+// formats are real, but the titles and line-ups are written for SightLine.
+export const EVENTS: Movie[] = [
+  {
+    id: 'delhi-comedy-night',
+    kind: 'comedy',
+    title: 'Delhi Comedy Night',
+    tagline: 'Five comics, one mic',
+    genres: ['Stand-up'],
+    runtime: 100,
+    cert: 'A',
+    language: 'Hindi, English',
+    director: '',
+    cast: ['A host and four stand-up comics, new line-up every night'],
+    synopsis: 'An evening of stand-up in Hindi and English about Delhi traffic, Delhi weddings and Delhi parents. Every night has a different line-up of club comics and one surprise headliner.',
+    released: '2026-11-01',
+    scene: 'neon',
+    titleFont: 'display',
+    photo: PHOTOS.comedyStage,
+  },
+  {
+    id: 'bollywood-live',
+    kind: 'music',
+    title: 'Bollywood Live: The Big Band',
+    tagline: 'Three decades of hits, played live',
+    genres: ['Live music', 'Bollywood'],
+    runtime: 150,
+    cert: 'U',
+    language: 'Hindi',
+    director: '',
+    cast: ['A 12-piece band with four singers'],
+    synopsis: 'A twelve-piece band and four singers work through film songs from the nineties to now, with the cinema sound system turned all the way up. Singing along is encouraged.',
+    released: '2026-11-07',
+    scene: 'neon',
+    titleFont: 'display',
+    photo: PHOTOS.concertCrowd,
+  },
+  {
+    id: 'symphony-of-cinema',
+    kind: 'music',
+    title: 'The Symphony of Cinema',
+    tagline: 'Film scores, played by a full orchestra',
+    genres: ['Orchestra', 'Film music'],
+    runtime: 120,
+    cert: 'U',
+    language: 'Instrumental',
+    director: '',
+    cast: ['A 40-piece chamber orchestra and conductor'],
+    synopsis: 'A chamber orchestra plays the scores of Indian and world cinema while scenes from the films run on the screen behind them, from classic title themes to recent soundtracks.',
+    released: '2026-11-14',
+    scene: 'space',
+    titleFont: 'serif',
+    photo: PHOTOS.concertHall,
+  },
+  {
+    id: 'jazz-after-dark',
+    kind: 'music',
+    title: 'Jazz After Dark',
+    tagline: 'A late set in the recliners',
+    genres: ['Jazz'],
+    runtime: 90,
+    cert: 'U',
+    language: 'Instrumental',
+    director: '',
+    cast: ['A saxophone-led quartet'],
+    synopsis: 'A quartet plays standards and a few Hindi film tunes rearranged as jazz, in the smallest auditorium with the lights down low.',
+    released: '2026-11-10',
+    scene: 'noir',
+    titleFont: 'serif',
+    photo: PHOTOS.saxophone,
+  },
+  {
+    id: 'cricket-night-live',
+    kind: 'sports',
+    title: 'Cricket Night, Live',
+    tagline: 'Every evening match on the big screen',
+    genres: ['Cricket', 'Live screening'],
+    runtime: 210,
+    cert: 'U',
+    language: 'Hindi, English',
+    director: '',
+    cast: ['Live broadcast with Hindi and English commentary'],
+    synopsis: 'The evening’s international or league match shown live on the largest screen in the building, with stadium-level sound and a full food menu at your seat.',
+    released: '2026-11-01',
+    scene: 'alpine',
+    titleFont: 'display',
+    photo: PHOTOS.stadiumNight,
+  },
+  {
+    id: 'weekend-cricket-live',
+    kind: 'sports',
+    title: 'Weekend Cricket, Live',
+    tagline: 'Day matches, from the first ball',
+    genres: ['Cricket', 'Live screening'],
+    runtime: 240,
+    cert: 'U',
+    language: 'Hindi, English',
+    director: '',
+    cast: ['Live broadcast with Hindi and English commentary'],
+    synopsis: 'Weekend day matches shown live from the first ball, with the house lights half up so you can see your food.',
+    released: '2026-11-01',
+    scene: 'desert',
+    titleFont: 'display',
+    photo: PHOTOS.stadiumDay,
+  },
+  {
+    id: 'the-last-train-from-daryaganj',
+    kind: 'theatre',
+    title: 'The Last Train from Daryaganj',
+    tagline: 'A play in one act',
+    genres: ['Drama', 'Play'],
+    runtime: 110,
+    cert: 'UA 13+',
+    language: 'Hindi',
+    director: '',
+    cast: ['An ensemble of six actors'],
+    synopsis: 'On the night the old cinema on Asaf Ali Road closes for good, its projectionist, its ticket seller and a stranger with a reel of lost film wait for a train that may not come.',
+    released: '2026-11-08',
+    scene: 'lighthouse',
+    titleFont: 'serif',
+    photo: PHOTOS.stageSet,
+  },
+];
+
+/** Movies and live shows together. */
+export const TITLES: Movie[] = [...MOVIES, ...EVENTS];
+
 export const GENRES = Array.from(new Set(MOVIES.flatMap((m) => m.genres)));
 export const LANGUAGES = Array.from(new Set(MOVIES.map((m) => m.language)));
+export const EVENT_KINDS = Array.from(new Set(EVENTS.map((e) => e.kind)));
 
-export const getMovie = (id: string | undefined) => MOVIES.find((m) => m.id === id);
+export const getMovie = (id: string | undefined) => TITLES.find((m) => m.id === id);
+export const isLive = (m: Movie) => m.kind !== 'movie';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dateKey = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
@@ -203,33 +348,108 @@ export interface Show {
 const programmeCache = new Map<string, { time: string; movieId: string }[]>();
 const SCREEN_SLOTS = new Map(CINEMAS.flatMap((c) => c.screens.map((s) => `${c.id}|${s.id}`)).map((k, i) => [k, i]));
 
+/** Which hall models suit each live show, and which only run at weekends (as day events). */
+const EVENT_HALLS: Record<string, string[]> = {
+  'delhi-comedy-night': ['h1', 'h3'],
+  'bollywood-live': ['h1', 'h2'],
+  'symphony-of-cinema': ['h2'],
+  'jazz-after-dark': ['h3'],
+  'cricket-night-live': ['h2', 'h1'],
+  'weekend-cricket-live': ['h2'],
+  'the-last-train-from-daryaganj': ['h1', 'h3'],
+};
+const DAY_EVENTS = new Set(['weekend-cricket-live']);
+
+/** An admin's change to the generated programme: an extra show, or a cancelled one. */
+export interface ScheduleChange {
+  action: 'add' | 'cancel';
+  movieId: string;
+  cinemaId: string;
+  screenId: string;
+  dateKey: string;
+  time: string;
+}
+
+let scheduleChanges: ScheduleChange[] = [];
+
+/** Applies the admin's changes everywhere shows are listed or checked. */
+export function setScheduleChanges(changes: ScheduleChange[]) {
+  scheduleChanges = changes;
+  programmeCache.clear();
+  popularityCache.clear();
+}
+export const getScheduleChanges = () => scheduleChanges;
+
+const toTime = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+
 /**
  * One auditorium's day, run like a real cinema: two titles alternate (the bigger
  * release more often), each show starting after the last one ends plus cleaning time.
+ * On some days the evening slot goes to a live show instead.
  */
-function programme(cinema: Cinema, screen: Screen, key: string): { time: string; movieId: string }[] {
-  const cacheKey = `${cinema.id}|${screen.id}|${key}`;
-  const hit = programmeCache.get(cacheKey);
-  if (hit) return hit;
-  const rng = mulberry32(hashString(cacheKey));
+function baseProgramme(cinema: Cinema, screen: Screen, key: string): { time: string; movieId: string }[] {
+  const rng = mulberry32(hashString(`${cinema.id}|${screen.id}|${key}`));
   // every auditorium in the city gets a slot number, so the smaller releases are spread across all of them
   const slot = SCREEN_SLOTS.get(`${cinema.id}|${screen.id}`) ?? 0;
   const day = Number(key.slice(6, 8));
+  const weekend = [0, 6].includes(parseDateKey(key).getDay());
   const headliners = MOVIES.filter((m) => m.featured);
   const rest = MOVIES.filter((m) => !m.featured);
   const lead = headliners[(slot + day) % headliners.length];
   const second = rest[(slot + day * 3) % rest.length];
   const pattern = rng() < 0.5 ? [lead, second, lead, lead, second] : [lead, lead, second, lead, second];
+
+  const suited = EVENTS.filter((e) => EVENT_HALLS[e.id]?.includes(screen.hallId) && (weekend || !DAY_EVENTS.has(e.id)));
+  const event = suited.length && (slot * 5 + day * 3) % 7 < 3 ? suited[(slot + day) % suited.length] : null;
+  const eventFrom = event && DAY_EVENTS.has(event.id) ? 13 * 60 + 30 : 18 * 60 + 15;
+
   let minutes = 9 * 60 + 30 + Math.floor(rng() * 6) * 10;
+  let placed = false;
+  let i = 0;
   const out: { time: string; movieId: string }[] = [];
-  for (let i = 0; minutes <= 22 * 60 + 45; i++) {
-    const movie = pattern[i % pattern.length];
-    out.push({ time: `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`, movieId: movie.id });
-    minutes += movie.runtime + 20 + Math.floor(rng() * 3) * 5;
+  while (minutes <= 22 * 60 + 45) {
+    const title = event && !placed && minutes >= eventFrom ? event : pattern[i++ % pattern.length];
+    if (title === event) placed = true;
+    out.push({ time: toTime(minutes), movieId: title.id });
+    minutes += title.runtime + (isLive(title) ? 30 : 20) + Math.floor(rng() * 3) * 5;
     minutes = Math.ceil(minutes / 5) * 5;
+  }
+  return out;
+}
+
+function programme(cinema: Cinema, screen: Screen, key: string): { time: string; movieId: string }[] {
+  const cacheKey = `${cinema.id}|${screen.id}|${key}`;
+  const hit = programmeCache.get(cacheKey);
+  if (hit) return hit;
+  let out = baseProgramme(cinema, screen, key);
+  const here = scheduleChanges.filter((c) => c.cinemaId === cinema.id && c.screenId === screen.id && c.dateKey === key);
+  if (here.length) {
+    const cancelled = new Set(here.filter((c) => c.action === 'cancel').map((c) => `${c.movieId}@${c.time}`));
+    out = out.filter((p) => !cancelled.has(`${p.movieId}@${p.time}`));
+    for (const c of here) if (c.action === 'add' && !cancelled.has(`${c.movieId}@${c.time}`)) out.push({ time: c.time, movieId: c.movieId });
+    out.sort((a, b) => a.time.localeCompare(b.time));
   }
   programmeCache.set(cacheKey, out);
   return out;
+}
+
+/** The generated show, before any admin changes; used to tell added shows from regular ones. */
+export const isRegularShow = (cinema: Cinema, screen: Screen, key: string, time: string, movieId: string) =>
+  baseProgramme(cinema, screen, key).some((p) => p.time === time && p.movieId === movieId);
+
+/** Every show on one auditorium's day, with the admin's cancelled ones still listed. */
+export function screenDay(cinema: Cinema, screen: Screen, key: string): { show: Show; cancelled: boolean; added: boolean }[] {
+  const base = baseProgramme(cinema, screen, key);
+  const live = programme(cinema, screen, key);
+  const key2 = (p: { time: string; movieId: string }) => `${p.movieId}@${p.time}`;
+  const liveKeys = new Set(live.map(key2));
+  const baseKeys = new Set(base.map(key2));
+  const all = [...base, ...live.filter((p) => !baseKeys.has(key2(p)))].sort((a, b) => a.time.localeCompare(b.time));
+  return all.map((p) => ({
+    show: makeShow(p.movieId, key, cinema, screen, p.time),
+    cancelled: !liveKeys.has(key2(p)),
+    added: !baseKeys.has(key2(p)),
+  }));
 }
 
 function makeShow(movieId: string, key: string, cinema: Cinema, screen: Screen, time: string): Show {
@@ -271,7 +491,7 @@ export function showsFor(movie: Movie, key: string): ShowGroup[] {
 
 /** Everything a cinema shows on a day, by movie. */
 export function showsAt(cinema: Cinema, key: string): { movie: Movie; groups: { screen: Screen; shows: Show[] }[] }[] {
-  return MOVIES
+  return TITLES
     .map((movie) => ({
       movie,
       groups: cinema.screens
@@ -312,6 +532,19 @@ export function nextShow(movie: Movie): Show {
     if (hit) return hit;
   }
   return showsFor(movie, upcomingDays(2)[1].key)[0].shows[0];
+}
+
+/** The soonest show still to start in the coming days, or null when there is none. */
+export function nextShowWithin(movie: Movie, days = 7): Show | null {
+  const soon = Date.now() + 10 * 60 * 1000;
+  for (const day of upcomingDays(days)) {
+    const hit = showsFor(movie, day.key)
+      .flatMap((g) => g.shows)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .find((s) => s.start.getTime() > soon);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 /** Cinema name and auditorium for a show, e.g. "PVR Select Citywalk, Saket · Audi 3". */

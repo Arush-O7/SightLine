@@ -37,9 +37,9 @@ export async function movieMedia(): Promise<Record<string, MovieMedia>> {
   if (cache && Date.now() - cache.at < TTL) return cache.media;
   pending ??= (async () => {
     const entries = await Promise.all(
-      MOVIES.map(async (m) => {
+      MOVIES.filter((m) => m.tmdbId).map(async (m) => {
         try {
-          return [m.id, await fetchOne(m.tmdbId)] as const;
+          return [m.id, await fetchOne(m.tmdbId!)] as const;
         } catch (err) {
           console.warn(`[tmdb] ${m.title}: ${(err as Error).message}`);
           return [m.id, { poster: null, backdrop: null }] as const;

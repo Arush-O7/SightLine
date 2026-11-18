@@ -5,7 +5,7 @@ import { Backdrop, Poster } from '../components/Art';
 import ShowTimes from '../components/ShowTimes';
 import NotFound from './NotFound';
 import { getCinema } from '../data/cinemas';
-import { formatRuntime, getMovie, showsFor, upcomingDays, type ShowGroup } from '../data/movies';
+import { KIND_LABEL, formatRuntime, getMovie, isLive, showsFor, upcomingDays, type ShowGroup } from '../data/movies';
 import { getLayout } from '../lib/hall';
 import { useTitle } from '../lib/useTitle';
 
@@ -39,7 +39,8 @@ export default function MoviePage() {
     );
   useTitle(movie?.title);
 
-  if (!movie) return <NotFound title="We couldn’t find that movie" />;
+  if (!movie) return <NotFound title="We couldn’t find that movie or show" />;
+  const live = isLive(movie);
 
   // group the day's screenings by cinema, keeping each auditorium's times together
   const byCinema = new Map<string, ShowGroup[]>();
@@ -54,14 +55,15 @@ export default function MoviePage() {
         <Backdrop movie={movie} priority className="movie-hero-bg" />
         <div className="movie-hero-scrim" />
         <div className="container movie-hero-inner">
-          <Link to="/" className="back-link">
-            <ArrowLeft size={16} /> All movies
+          <Link to={live ? '/events' : '/'} className="back-link">
+            <ArrowLeft size={16} /> {live ? 'All live shows' : 'All movies'}
           </Link>
           <div className="movie-head">
             <Poster movie={movie} eager className="movie-head-poster" />
             <div className="movie-head-info">
               <h1 className={`movie-title ${movie.titleFont === 'serif' ? 'serif' : ''}`}>{movie.title}</h1>
               <div className="meta-row">
+                {live ? <span className="badge">{KIND_LABEL[movie.kind]}</span> : null}
                 <span>
                   <Globe size={14} /> {movie.language}
                 </span>
@@ -80,7 +82,7 @@ export default function MoviePage() {
                   </div>
                 ) : null}
                 <div>
-                  <dt>Cast</dt>
+                  <dt>{live ? 'Line-up' : 'Cast'}</dt>
                   <dd>{movie.cast.join(', ')}</dd>
                 </div>
               </dl>
@@ -93,7 +95,7 @@ export default function MoviePage() {
         <div className="section-head">
           <div>
             <h2>Cinemas and Showtimes</h2>
-            <p className="muted">Pick a time, then see the view from any seat before you book.</p>
+            <p className="muted">Pick a time, then see the {live ? 'stage' : 'view'} from any seat before you book.</p>
           </div>
         </div>
 

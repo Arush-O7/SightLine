@@ -986,3 +986,26 @@ export async function loadArtFonts(): Promise<void> {
   const timeout = new Promise<void>((res) => setTimeout(res, 2500));
   await Promise.race([Promise.all(faces.map((f) => document.fonts.load(f))).then(() => undefined), timeout]);
 }
+
+/**
+ * Draws a photo over a screen canvas, cropped to fill it. Resolves false when the
+ * photo can't be used (failed to load, or served without CORS headers).
+ */
+export function paintPhoto(canvas: HTMLCanvasElement, url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx || !img.naturalWidth) return resolve(false);
+      const scale = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      resolve(true);
+    };
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}

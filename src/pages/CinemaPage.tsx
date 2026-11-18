@@ -2,11 +2,11 @@ import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import { Poster } from '../components/Art';
-import HallPlan from '../components/HallPlan';
 import ShowTimes from '../components/ShowTimes';
 import NotFound from './NotFound';
 import { getCinema } from '../data/cinemas';
-import { formatRuntime, showsAt, upcomingDays } from '../data/movies';
+import { KIND_LABEL, formatRuntime, isLive, showsAt, upcomingDays } from '../data/movies';
+import { sized } from '../data/photos';
 import { getLayout } from '../lib/hall';
 import { useTitle } from '../lib/useTitle';
 
@@ -32,11 +32,18 @@ export default function CinemaPage() {
       <Link to="/cinemas" className="back-link">
         <ArrowLeft size={16} /> All cinemas
       </Link>
-      <header className="cinema-head">
-        <h1>{cinema.name}</h1>
-        <p className="muted">
-          <MapPin size={14} aria-hidden="true" /> {cinema.area}, Delhi · {cinema.chain}
-        </p>
+      <header className="cinema-hero">
+        <img src={sized(cinema.photo, 1280)} width={1280} height={720} alt="" fetchPriority="high" />
+        <div className="cinema-hero-scrim" />
+        <div className="cinema-hero-copy">
+          <h1>{cinema.name}</h1>
+          <p>
+            <MapPin size={14} aria-hidden="true" /> {cinema.area}, Delhi · {cinema.chain}
+          </p>
+        </div>
+        <Link to="/credits" className="photo-credit">
+          {cinema.photo.note?.startsWith('Representative') ? 'Representative photo · ' : ''}Photo: {cinema.photo.author}, {cinema.photo.license}
+        </Link>
       </header>
 
       <div className="screen-cards">
@@ -44,7 +51,7 @@ export default function CinemaPage() {
           const layout = getLayout(s.hallId);
           return (
             <div key={s.id} className="screen-card">
-              <HallPlan layout={layout} className="screen-card-plan" />
+              <img src={`/halls/${s.hallId}-seat.jpg`} width={480} height={250} loading="lazy" decoding="async" alt={`${s.name}, seen from a back-row seat (3D render)`} />
               <div>
                 <h2>{s.name}</h2>
                 <p className="muted small">
@@ -84,6 +91,7 @@ export default function CinemaPage() {
                   <Link to={`/movie/${movie.id}`}>{movie.title}</Link>
                 </h3>
                 <p className="muted small">
+                  {isLive(movie) ? `${KIND_LABEL[movie.kind]} · ` : ''}
                   {movie.language} · {movie.genres.slice(0, 2).join(', ')} · {formatRuntime(movie.runtime)}
                 </p>
               </header>

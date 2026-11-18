@@ -3,11 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Backdrop } from '../components/Art';
 import CinemaCard from '../components/CinemaCard';
+import EventCard from '../components/EventCard';
 import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
 import SeatDetails from '../components/SeatDetails';
 import { CINEMAS } from '../data/cinemas';
-import { LANGUAGES, MOVIES, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
+import { EVENTS, LANGUAGES, MOVIES, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
 import { useTitle } from '../lib/useTitle';
@@ -138,8 +139,8 @@ export default function Home() {
         <div className="container home-hero-copy">
           <h1 id="home-title">See your seat before you book it</h1>
           <p className="home-hero-lede">
-            Every cinema here is rebuilt in 3D. Pick a movie, pick a cinema in Delhi, then sit in any seat and see the screen from
-            there.
+            Every cinema here is rebuilt in 3D. Pick a movie or a live show, pick a cinema in Delhi, then sit in any seat and see the
+            stage from there.
           </p>
           <div className="home-hero-cta">
             <button type="button" className="btn btn-primary btn-lg" onClick={() => moviesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
@@ -150,7 +151,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="home-hero-facts">
-            {MOVIES.length} movies · {CINEMAS.length} cinemas in Delhi · a view score for every seat
+            {MOVIES.length} movies · {EVENTS.length} live shows · {CINEMAS.length} cinemas in Delhi
           </p>
         </div>
         {heroVenue ? (
@@ -213,6 +214,24 @@ export default function Home() {
             </button>
           </div>
         )}
+      </section>
+
+      <section className="container section" id="live">
+        <div className="section-head">
+          <div>
+            <h2>Live in the auditorium</h2>
+            <p className="muted">Comedy, concerts, cricket on the big screen and theatre, in the same halls.</p>
+          </div>
+          <Link to="/events" className="btn btn-secondary">
+            All Live Shows
+          </Link>
+        </div>
+        <div className="event-grid">
+          {/* one of each kind */}
+          {EVENTS.filter((e, i) => EVENTS.findIndex((x) => x.kind === e.kind) === i).map((e) => (
+            <EventCard key={e.id} event={e} />
+          ))}
+        </div>
       </section>
 
       <section className="container section">

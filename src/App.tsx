@@ -24,6 +24,13 @@ const ResetPage = lazy(() => import('./pages/ResetPage'));
 const VerifyPage = lazy(() => import('./pages/VerifyPage'));
 const CinemasPage = lazy(() => import('./pages/CinemasPage'));
 const CinemaPage = lazy(() => import('./pages/CinemaPage'));
+const EventsPage = lazy(() => import('./pages/EventsPage'));
+const CreditsPage = lazy(() => import('./pages/CreditsPage'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
+const AdminShows = lazy(() => import('./pages/admin/AdminShows'));
+const AdminBookings = lazy(() => import('./pages/admin/AdminBookings'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const DemoInboxPage = lazy(() => import('./pages/DemoInboxPage'));
 
 function ScrollToTop() {
@@ -70,7 +77,9 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/movie/:movieId" element={<MoviePage />} />
+              <Route path="/events" element={<EventsPage />} />
               <Route path="/cinemas" element={<CinemasPage />} />
+              <Route path="/credits" element={<CreditsPage />} />
               <Route path="/cinema/:cinemaId" element={<CinemaPage />} />
               <Route path="/book/:showId" element={<BookingPage />} />
               <Route path="/login" element={<AuthPage mode="login" />} />
@@ -112,6 +121,12 @@ export default function App() {
                   </RequireAuth>
                 }
               />
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminOverview />} />
+                <Route path="shows" element={<AdminShows />} />
+                <Route path="bookings" element={<AdminBookings />} />
+                <Route path="users" element={<AdminUsers />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

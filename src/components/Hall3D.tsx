@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { HallScene, type LightMode, type ViewMode } from '../three/HallScene';
-import { paintArt } from '../lib/art';
+import { paintArt, paintPhoto } from '../lib/art';
+import { screenPhoto } from '../lib/screenPhoto';
 import type { HallLayout, Seat } from '../lib/hall';
 import { money, type Movie } from '../data/movies';
 
@@ -46,9 +47,12 @@ const Hall3D = forwardRef<Hall3DHandle, Props>(function Hall3D(props, ref) {
     const mount = mountRef.current;
     if (!mount) return;
     let scene: HallScene;
+    let art: HTMLCanvasElement;
+    let live = true;
     try {
       const s = layout.config.screen;
-      scene = new HallScene(mount, layout, paintArt(movie, 'backdrop', 1792, 1792 / (s.width / s.height)), {
+      art = paintArt(movie, 'backdrop', 1792, 1792 / (s.width / s.height));
+      scene = new HallScene(mount, layout, art, {
         onHover: (seat, x, y) => {
           handlers.current.onHover(seat);
           setTip(seat);
@@ -69,6 +73,8 @@ const Hall3D = forwardRef<Hall3DHandle, Props>(function Hall3D(props, ref) {
       setFailed(true);
       return;
     }
+    const photo = screenPhoto(movie);
+    if (photo) void paintPhoto(art, photo).then((ok) => ok && live && scene.refreshScreen());
     sceneRef.current = scene;
     setReady(true);
     // open straight into the seat the page is focused on, otherwise the overview
@@ -76,6 +82,7 @@ const Hall3D = forwardRef<Hall3DHandle, Props>(function Hall3D(props, ref) {
     if (start && layout.byId.has(start)) scene.enterSeatView(start);
     else handlers.current.onModeChange('orbit', null);
     return () => {
+      live = false;
       sceneRef.current = null;
       setReady(false);
       scene.dispose();

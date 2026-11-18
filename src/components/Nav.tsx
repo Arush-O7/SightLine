@@ -41,10 +41,16 @@ export default function Nav() {
           <NavLink to="/" end>
             Movies
           </NavLink>
+          <NavLink to="/events">Live Shows</NavLink>
           <NavLink to="/cinemas">Cinemas</NavLink>
           <NavLink to="/help">Help</NavLink>
           {user ? (
             <>
+              {user.role === 'admin' ? (
+                <NavLink to="/admin" className="nav-admin">
+                  Admin
+                </NavLink>
+              ) : null}
               <NavLink to="/bookings" className="nav-tickets">
                 <Ticket size={16} />
                 <span>My Tickets</span>

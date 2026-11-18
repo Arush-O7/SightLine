@@ -44,6 +44,24 @@ const TOPICS: Topic[] = [
     ],
   },
   {
+    id: 'shows',
+    title: 'Movies and Live Shows',
+    faq: [
+      {
+        q: 'What can I book besides movies?',
+        a: 'Live shows staged in the same auditoriums: stand-up comedy, concerts, live cricket screenings and plays. Open Live Shows to see them, then pick a time and a seat the same way as for a movie. In this demo the live shows are illustrative: the formats are real, the titles and line-ups are not.',
+      },
+      {
+        q: 'Where do the photos come from?',
+        a: 'Photos of the cinemas and live shows are freely licensed photos from Wikimedia Commons, credited on the Photo Credits page. Where no free photo of a cinema exists, a representative photo is used and labelled as one. Pictures of auditoriums are rendered from SightLine’s own 3D models.',
+      },
+      {
+        q: 'Can a show be cancelled?',
+        a: 'Yes. If the cinema cancels a show, every booking for it is cancelled straight away, paid tickets are refunded to the way you paid, and you get an email.',
+      },
+    ],
+  },
+  {
     id: 'booking',
     title: 'Booking and Payment',
     faq: [
