@@ -51,8 +51,8 @@ export default function Footer() {
           payments run in test mode, so no money moves.
         </p>
         <p className="muted small">
-          Movie details from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB. Photos of cinemas and live shows from
-          Wikimedia Commons (<Link to="/credits">credits</Link>).
+          Movie details from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB. Movie posters © their studios, from Wikipedia.
+          Photos of cinemas, lobbies and live shows from Wikimedia Commons (<Link to="/credits">credits</Link>).
         </p>
       </div>
     </footer>

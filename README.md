@@ -8,6 +8,8 @@ SightLine is a booking site for movies and live shows in Delhi’s cinemas. You 
 
 You pick a movie or a live show, then a cinema and a showtime, then a seat. The movies are current releases and the cinemas are real ones across Delhi, from Saket to Connaught Place and Dwarka.
 
+![Now showing in Delhi: seven current releases with their official posters](docs/screenshots/movies.jpg)
+
 ![A movie's cinemas and showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg)
 
 The booking screen opens on the view from the best free seat. Every seat has a view score, and the seats people book most are marked with a dot:
@@ -48,7 +50,8 @@ On a phone the 3D view sits above the seat map:
 - **Compare and share:** two seats side by side, or a link that opens the hall at one exact seat.
 - **Most booked seats:** marked on the map, with the ones still free listed for one-tap picking.
 - **Live shows:** stand-up comedy, concerts, live cricket screenings and plays, booked the same way as movies.
-- **Cinema pages:** a photo of each cinema and a picture of every auditorium, rendered from its 3D model.
+- **Cinema pages:** a photo of each cinema, its lobby and snack counter, and a picture of every auditorium rendered from its 3D model.
+- **Real posters:** every movie shows its official theatrical poster.
 - **Admin:** a sales overview, adding, cancelling and restoring shows (cancelling refunds and emails every customer), all bookings, and customer roles.
 - **Accounts:** email and password or Google sign-in, email confirmation, password reset, a signed-in devices list and account deletion.
 - **Payments:** UPI, card and pay at the cinema, through a built-in test gateway. Tickets show the GST included.
@@ -97,5 +100,6 @@ The database, not the browser, decides who gets a seat:
 ## Limitations
 
 - The movies and cinemas are real, but SightLine isn’t connected to any cinema. Showtimes, live shows, prices, seat layouts and the background crowd are illustrative.
-- Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page); two cinemas with no free photo use representative ones, labelled as such.
+- Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page). No Delhi cinema has a freely licensed lobby photo, so every lobby and snack-counter photo is a representative one from another cinema, labelled as such; so are the building photos for two cinemas.
+- Movie posters are the films’ official theatrical posters, shown from Wikipedia (or from TMDB when a TMDB key is set). They belong to their studios and are only linked, not stored in this repository.
 - Payments run in test mode; a real launch would swap `server/gateway.ts` for a provider such as Razorpay.

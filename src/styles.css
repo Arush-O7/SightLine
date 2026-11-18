@@ -772,7 +772,7 @@ a.time:hover small { color: var(--ink-soft); }
 
 /* cinema page */
 .cinemas-page, .cinema-page { padding-top: 40px; }
-.cinema-hero { position: relative; margin: 18px 0 28px; border-radius: var(--radius); overflow: hidden; aspect-ratio: 21 / 8; min-height: 260px; background: var(--bg-2); }
+.cinema-hero { position: relative; margin: 0; border-radius: var(--radius); overflow: hidden; aspect-ratio: 21 / 8; min-height: 260px; background: var(--bg-2); }
 .cinema-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cinema-hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 11, 12, 0) 35%, rgba(11, 11, 12, 0.88)); }
 .cinema-hero-copy { position: absolute; left: clamp(18px, 3vw, 32px); right: 18px; bottom: clamp(18px, 3vw, 28px); }
@@ -811,7 +811,7 @@ a.time:hover small { color: var(--ink-soft); }
 /* credits */
 .credits-page h1 { font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.04em; }
 .credits-page h2 { font-size: 18px; margin: 32px 0 12px; }
-.credits-intro { max-width: 62ch; margin-top: 12px; }
+.credits-intro { max-width: 54ch; margin-top: 12px; }
 .credit-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; }
 .credit-list li { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; gap: 6px 24px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; }
 .credit-list a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
@@ -882,3 +882,14 @@ span.actions { display: flex; justify-content: flex-end; }
 .nav-admin { font-weight: 500; }
 .auth-admin { margin-top: 8px; color: var(--muted); }
 @media (max-width: 800px) { .admin-two { grid-template-columns: 1fr; } .admin-list li { flex-wrap: wrap; } }
+
+/* a portrait poster standing in for a wide backdrop */
+.backdrop-poster { filter: blur(30px) saturate(1.15) brightness(0.72); transform: scale(1.18); }
+
+/* building and lobby, side by side */
+.cinema-photos { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; margin: 18px 0 28px; }
+.cinema-lobby { position: relative; margin: 0; border-radius: var(--radius); overflow: hidden; background: var(--bg-2); min-height: 260px; }
+.cinema-lobby img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cinema-lobby-label { position: absolute; left: 12px; top: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(11, 11, 12, 0.82); font-size: 13px; font-weight: 500; }
+@media (max-width: 900px) { .cinema-photos { grid-template-columns: 1fr; } .cinema-lobby { aspect-ratio: 16 / 9; min-height: 0; } }
+.credit-list li > .muted { max-width: 68ch; }

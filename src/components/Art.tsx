@@ -4,10 +4,10 @@ import { useStore } from '../lib/store';
 import { sized } from '../data/photos';
 import type { Movie } from '../data/movies';
 
-/** The official poster when the server has one, a live show's photo, otherwise artwork painted for the movie. */
+/** The official poster (from TMDB when the server has a key, otherwise Wikipedia's copy), a live show's photo, or painted art. */
 export function Poster({ movie, className = '', eager = false }: { movie: Movie; className?: string; eager?: boolean }) {
   const tmdb = useStore((s) => s.media[movie.id]?.poster ?? null);
-  const official = tmdb ?? (movie.photo ? sized(movie.photo, 960) : null);
+  const official = tmdb ?? movie.poster?.src ?? (movie.photo ? sized(movie.photo, 960) : null);
   const [broken, setBroken] = useState(false);
   const painted = useMemo(() => (official && !broken ? '' : artUrl(movie, 'poster')), [movie, official, broken]);
   return (
@@ -18,7 +18,7 @@ export function Poster({ movie, className = '', eager = false }: { movie: Movie;
       height={840}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
-      alt={movie.photo && !tmdb ? '' : `${movie.title} poster`}
+      alt={movie.photo && !tmdb && !movie.poster ? '' : `${movie.title} poster`}
       draggable={false}
       onError={() => setBroken(true)}
     />
@@ -27,12 +27,14 @@ export function Poster({ movie, className = '', eager = false }: { movie: Movie;
 
 export function Backdrop({ movie, className = '', priority = false }: { movie: Movie; className?: string; priority?: boolean }) {
   const tmdb = useStore((s) => s.media[movie.id]?.backdrop ?? null);
-  const official = tmdb ?? (movie.photo ? movie.photo.src : null);
+  // without a wide backdrop, a movie's portrait poster is shown blurred to fill the space
+  const fromPoster = !tmdb && !movie.photo && !!movie.poster;
+  const official = tmdb ?? movie.photo?.src ?? movie.poster?.src ?? null;
   const [broken, setBroken] = useState(false);
   const painted = useMemo(() => (official && !broken ? '' : artUrl(movie, 'backdrop')), [movie, official, broken]);
   return (
     <img
-      className={className}
+      className={`${className}${fromPoster && !broken ? ' backdrop-poster' : ''}`}
       src={official && !broken ? official : painted}
       width={1680}
       height={840}

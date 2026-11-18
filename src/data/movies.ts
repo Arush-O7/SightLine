@@ -16,6 +16,8 @@ export interface Movie {
   tmdbId?: number;
   /** a live show's photo; movies use TMDB artwork or painted art */
   photo?: Photo;
+  /** the theatrical release poster as shown on Wikipedia, used when there is no TMDB key */
+  poster?: { src: string; page: string };
   title: string;
   tagline: string;
   genres: string[];
@@ -32,6 +34,8 @@ export interface Movie {
   featured?: boolean;
 }
 
+const wiki = (path: string, page: string) => ({ src: `https://upload.wikimedia.org/wikipedia/en/${path}`, page: `https://en.wikipedia.org/wiki/${page}` });
+
 // Titles, people and runtimes are from TMDB listings (November 2026); the
 // summaries and taglines are written for SightLine.
 export const MOVIES: Movie[] = [
@@ -39,6 +43,7 @@ export const MOVIES: Movie[] = [
     id: 'ramayana-rise-of-a-legend',
     kind: 'movie',
     tmdbId: 656908,
+    poster: wiki('4/48/Ramayana_Part_1_%28poster%29.jpg', 'Ramayana:_Part_1'),
     title: 'Ramayana: Rise of a Legend',
     tagline: 'Part one of the epic',
     genres: ['Mythology', 'Action', 'Drama'],
@@ -58,6 +63,7 @@ export const MOVIES: Movie[] = [
     id: 'drishyam-the-conclusion',
     kind: 'movie',
     tmdbId: 1269325,
+    poster: wiki('d/d9/Drishyam-_The_Conclusion_poster.jpg', 'Drishyam:_The_Conclusion'),
     title: 'Drishyam: The Conclusion',
     tagline: 'The last chapter of the case',
     genres: ['Crime', 'Thriller'],
@@ -77,6 +83,7 @@ export const MOVIES: Movie[] = [
     id: 'jailer-2',
     kind: 'movie',
     tmdbId: 1234139,
+    poster: wiki('d/dc/Jailer_2_poster.jpg', 'Jailer_2'),
     title: 'Jailer 2',
     tagline: 'Tiger is back',
     genres: ['Action', 'Comedy'],
@@ -96,6 +103,7 @@ export const MOVIES: Movie[] = [
     id: 'prahaar',
     kind: 'movie',
     tmdbId: 1081010,
+    poster: wiki('a/a0/Prahaar-_The_Untold_Story_of_Ujjwal_Nikam_film_poster.jpg', 'Prahaar:_The_Untold_Story_of_Ujjwal_Nikam'),
     title: 'Prahaar: The Untold Story of Ujjwal Nikam',
     tagline: 'The prosecutor who took on 26/11',
     genres: ['Crime', 'Drama'],
@@ -114,6 +122,7 @@ export const MOVIES: Movie[] = [
     id: 'i-play-rocky',
     kind: 'movie',
     tmdbId: 1286656,
+    poster: wiki('5/5e/I_Play_Rocky_poster.png', 'I_Play_Rocky'),
     title: 'I Play Rocky',
     tagline: 'He wrote it. He had to play it.',
     genres: ['Drama', 'Biography'],
@@ -132,6 +141,7 @@ export const MOVIES: Movie[] = [
     id: 'wildwood',
     kind: 'movie',
     tmdbId: 791523,
+    poster: wiki('a/aa/Wildwood_2026_poster.jpg', 'Wildwood_(film)'),
     title: 'Wildwood',
     tagline: 'From the makers of Coraline',
     genres: ['Animation', 'Fantasy', 'Adventure'],
@@ -150,6 +160,7 @@ export const MOVIES: Movie[] = [
     id: 'the-cat-in-the-hat',
     kind: 'movie',
     tmdbId: 1117898,
+    poster: wiki('e/e4/The_Cat_in_the_Hat_%282026_film_poster%29.png', 'The_Cat_in_the_Hat_(2026_film)'),
     title: 'The Cat in the Hat',
     tagline: 'A very rainy day',
     genres: ['Animation', 'Family', 'Comedy'],

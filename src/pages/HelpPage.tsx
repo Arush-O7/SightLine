@@ -53,7 +53,7 @@ const TOPICS: Topic[] = [
       },
       {
         q: 'Where do the photos come from?',
-        a: 'Photos of the cinemas and live shows are freely licensed photos from Wikimedia Commons, credited on the Photo Credits page. Where no free photo of a cinema exists, a representative photo is used and labelled as one. Pictures of auditoriums are rendered from SightLine’s own 3D models.',
+        a: 'Photos of the cinemas and live shows are freely licensed photos from Wikimedia Commons, credited on the Photo Credits page. Where no free photo of a cinema exists, a representative photo is used and labelled as one. Pictures of auditoriums are rendered from SightLine’s own 3D models. No Delhi cinema has a freely licensed photo of its lobby, so the lobby and snack-counter photos are representative ones from other cinemas. Movie posters are the official theatrical posters.',
       },
       {
         q: 'Can a show be cancelled?',

@@ -304,7 +304,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - A Surface card linking to the cinema: a 5:3 photo of the building (a representative photo carries a small translucent "Representative photo" pill), the cinema name at Title size, the area with a small map pin, its auditorium formats as Status Tags, and a hairline footer with today's title and screen counts. The photo zooms 3% on hover.
 
 ### Cinema Hero
-- The cinema page opens on its photo at 21:8 in a rounded frame, with a bottom scrim, the name at Statement size and the area and chain beneath. A small translucent pill top-right credits the photographer and licence and links to Photo Credits.
+- The cinema page opens on two photos side by side (2:1 columns, stacked on narrow screens): the building at 21:8 in a rounded frame, and the lobby and snack counter, labelled with a translucent pill and, when it is a stand-in, a "Representative photo" pill. The building photo has a bottom scrim, the name at Statement size and the area and chain beneath. A small translucent pill top-right credits the photographer and licence and links to Photo Credits.
 - Below it, one card per auditorium with a render from that auditorium's own 3D model, seen from a back-row seat with the house lights up. Never a seat plan here.
 
 ### Event Card

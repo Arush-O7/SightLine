@@ -17,6 +17,8 @@ export interface Cinema {
   area: string;
   /** the building, or a representative photo when none is freely licensed */
   photo: Photo;
+  /** the lobby and snack counter, where people wait before the show */
+  lobby: Photo;
   screens: Screen[];
 }
 
@@ -27,6 +29,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Saket',
     photo: PHOTOS.selectCitywalk,
+    lobby: PHOTOS.lobbyAmc,
     screens: [
       { id: 'a1', name: 'Audi 1', hallId: 'h2' },
       { id: 'a3', name: 'Audi 3', hallId: 'h1' },
@@ -39,6 +42,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Ambience Mall, Vasant Kunj',
     photo: PHOTOS.reclinerHall,
+    lobby: PHOTOS.lobbyStar,
     screens: [
       { id: 'a1', name: 'Audi 1', hallId: 'h3' },
       { id: 'a2', name: 'Audi 2', hallId: 'h3' },
@@ -50,6 +54,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'Cinépolis',
     area: 'Saket',
     photo: PHOTOS.dlfAvenue,
+    lobby: PHOTOS.lobbyCinepolis,
     screens: [
       { id: 'a1', name: 'Audi 1', hallId: 'h2' },
       { id: 'a4', name: 'Audi 4', hallId: 'h1' },
@@ -62,6 +67,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Connaught Place',
     photo: PHOTOS.pvrPlaza,
+    lobby: PHOTOS.lobbyOdeon,
     screens: [{ id: 'a1', name: 'Audi 1', hallId: 'h1' }],
   },
   {
@@ -70,6 +76,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Nehru Place',
     photo: PHOTOS.nehruPlace,
+    lobby: PHOTOS.lobbyShowcase,
     screens: [
       { id: 'a1', name: 'Audi 1', hallId: 'h1' },
       { id: 'a2', name: 'Audi 2', hallId: 'h3' },
@@ -81,6 +88,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'Independent',
     area: 'Asaf Ali Road, Daryaganj',
     photo: PHOTOS.singleScreen,
+    lobby: PHOTOS.lobbyRetro,
     screens: [{ id: 'main', name: 'Main Hall', hallId: 'h2' }],
   },
   {
@@ -89,6 +97,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Tagore Garden',
     photo: PHOTOS.pacificMall,
+    lobby: PHOTOS.lobbyStarMain,
     screens: [
       { id: 'a2', name: 'Audi 2', hallId: 'h2' },
       { id: 'a4', name: 'Audi 4', hallId: 'h1' },
@@ -100,6 +109,7 @@ export const CINEMAS: Cinema[] = [
     chain: 'PVR INOX',
     area: 'Dwarka',
     photo: PHOTOS.vegasMall,
+    lobby: PHOTOS.lobbyAmcQueue,
     screens: [
       { id: 'a1', name: 'Audi 1', hallId: 'h2' },
       { id: 'a3', name: 'Audi 3', hallId: 'h1' },
