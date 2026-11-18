@@ -446,6 +446,51 @@ await staff('PATCH', `/admin/users/${chitra.id}`, { role: 'user' });
 r = await cust('GET', '/admin/overview');
 check('and loses access when demoted', r.status === 403);
 
+// staff-added titles and prices
+r = await cust('POST', '/admin/titles', { kind: 'comedy', title: 'Sneaky', genres: 'Stand-up', runtime: 90, language: 'Hindi', synopsis: 'Long enough summary for the show.' });
+check('a customer cannot add titles', r.status === 403);
+r = await staff('POST', '/admin/titles', { kind: 'comedy', title: 'Late Laughs', genres: 'Stand-up', runtime: 90, language: 'Hindi', synopsis: 'x' });
+check('a title needs a proper summary', r.status === 400 && r.data.error.code === 'invalid_synopsis');
+r = await staff('POST', '/admin/titles', { kind: 'comedy', title: 'Late Laughs', genres: 'Stand-up', runtime: 90, language: 'Hindi', synopsis: 'A midnight set of new material.', image: 'https://evil.example/x.jpg' });
+check('title images must come from an allowed host', r.status === 400 && r.data.error.code === 'invalid_image');
+r = await staff('POST', '/admin/titles', { kind: 'comedy', title: 'Late Laughs', tagline: 'After hours', genres: 'Stand-up, Late night', runtime: 90, language: 'Hindi, English', cast: 'Three comics', synopsis: 'A midnight set of new material from three club comics.' });
+check('admin adds a live show title', r.status === 201 && r.data.title.id === 'late-laughs', JSON.stringify(r.data));
+r = await anon('GET', '/schedule');
+check('the site feed carries the new title', r.data.titles.some((t) => t.id === 'late-laughs'));
+r = await staff('POST', '/admin/shows', { movieId: 'late-laughs', cinemaId: 'pvr-plaza', screenId: audi.id, date: key, time: first.time });
+check('the new title can be scheduled', r.status === 201, JSON.stringify(r.data));
+const lateShow = r.data.showId;
+r = await anon('GET', `/movies/late-laughs/shows?date=${key}`);
+check('the new title’s show is on sale', r.data.shows.some((x) => x.id === lateShow));
+r = await staff('GET', '/admin/titles');
+check('admin lists built-in and added titles', r.data.titles.some((t) => t.id === 'late-laughs' && t.custom) && r.data.titles.some((t) => t.id === 'jailer-2' && !t.custom));
+r = await staff('DELETE', '/admin/titles/jailer-2');
+check('built-in titles cannot be removed', r.status === 409);
+
+r = await staff('GET', '/admin/prices');
+const std = r.data.halls?.find((h) => h.hallId === 'h1');
+check('admin sees prices by auditorium type', r.status === 200 && std?.zones.length === 3);
+r = await staff('PUT', '/admin/prices', { prices: [{ hallId: 'h1', zoneId: std.zones[0].id, price: 20 }] });
+check('a price below ₹50 is refused', r.status === 400 && r.data.error.code === 'invalid_price');
+r = await staff('PUT', '/admin/prices', { prices: [{ hallId: 'h1', zoneId: std.zones[0].id, price: 210 }] });
+check('admin changes a price', r.status === 200);
+r = await anon('GET', '/schedule');
+check('the site feed carries the new price', r.data.prices.some((p) => p.hallId === 'h1' && p.price === 210));
+const frontSeat = 'A5';
+r = await cust('POST', `/shows/${lateShow}/hold`, { seats: [frontSeat] });
+r = await cust('POST', '/bookings', { showId: lateShow, seats: [frontSeat], payment: { method: 'counter' }, idempotencyKey: 'late-laughs-1' });
+check('new bookings are charged the new price', r.status === 201 && r.data.booking.subtotal === 210, JSON.stringify(r.data));
+r = await staff('DELETE', '/admin/titles/late-laughs');
+check('a title with upcoming bookings cannot be removed', r.status === 409 && r.data.error.code === 'has_bookings');
+await staff('POST', '/admin/shows/cancel', { showId: lateShow });
+r = await staff('DELETE', '/admin/titles/late-laughs');
+check('once its shows are cancelled the title can be removed', r.status === 200);
+r = await anon('GET', '/movies/late-laughs/shows');
+check('a removed title is gone', r.status === 404);
+r = await staff('PUT', '/admin/prices', { prices: [{ hallId: 'h1', zoneId: std.zones[0].id, price: std.zones[0].defaultPrice }] });
+r = await anon('GET', '/schedule');
+check('setting the default price clears the change', r.status === 200 && !r.data.prices.length);
+
 // brute-force limit
 let limited = false;
 for (let i = 0; i < 14; i++) {

@@ -304,9 +304,67 @@ export const EVENTS: Movie[] = [
 /** Movies and live shows together. */
 export const TITLES: Movie[] = [...MOVIES, ...EVENTS];
 
-export const GENRES = Array.from(new Set(MOVIES.flatMap((m) => m.genres)));
-export const LANGUAGES = Array.from(new Set(MOVIES.map((m) => m.language)));
-export const EVENT_KINDS = Array.from(new Set(EVENTS.map((e) => e.kind)));
+/** The movies' languages, including any a cinema has added. */
+export const languages = () => Array.from(new Set(MOVIES.map((m) => m.language)));
+export const EVENT_KINDS: Kind[] = ['comedy', 'music', 'sports', 'theatre'];
+
+// the built-in programme only ever rotates these, so adding a title never moves existing showtimes
+const BASE_MOVIES = [...MOVIES];
+const BASE_EVENTS = [...EVENTS];
+const BASE_IDS = new Set([...BASE_MOVIES, ...BASE_EVENTS].map((t) => t.id));
+export const isCustomTitle = (id: string) => !BASE_IDS.has(id);
+
+/** A movie or live show added by cinema staff, as stored on the server. */
+export interface TitleRecord {
+  id: string;
+  kind: Kind;
+  title: string;
+  tagline: string;
+  genres: string[];
+  runtime: number;
+  cert: string;
+  language: string;
+  director: string;
+  cast: string[];
+  synopsis: string;
+  released: string;
+  /** a poster or photo on upload.wikimedia.org or image.tmdb.org, or empty for painted art */
+  image: string;
+}
+
+const KIND_SCENE: Record<Kind, SceneKind> = { movie: 'voyage', comedy: 'neon', music: 'neon', sports: 'alpine', theatre: 'lighthouse' };
+
+export function titleFromRecord(r: TitleRecord): Movie {
+  const image = r.image || undefined;
+  return {
+    id: r.id,
+    kind: r.kind,
+    title: r.title,
+    tagline: r.tagline,
+    genres: r.genres,
+    runtime: r.runtime,
+    cert: r.cert,
+    language: r.language,
+    director: r.director,
+    cast: r.cast,
+    synopsis: r.synopsis,
+    released: r.released,
+    scene: KIND_SCENE[r.kind],
+    titleFont: 'display',
+    poster: image && r.kind === 'movie' ? { src: image, page: image } : undefined,
+    photo: image && r.kind !== 'movie' ? { src: image, author: '', license: '', page: image } : undefined,
+  };
+}
+
+/** Adds the titles cinema staff created to the movie and live show lists. */
+export function setCustomTitles(records: TitleRecord[]) {
+  const added = records.map(titleFromRecord);
+  MOVIES.splice(0, MOVIES.length, ...BASE_MOVIES, ...added.filter((t) => t.kind === 'movie'));
+  EVENTS.splice(0, EVENTS.length, ...BASE_EVENTS, ...added.filter((t) => t.kind !== 'movie'));
+  TITLES.splice(0, TITLES.length, ...MOVIES, ...EVENTS);
+  programmeCache.clear();
+  popularityCache.clear();
+}
 
 export const getMovie = (id: string | undefined) => TITLES.find((m) => m.id === id);
 export const isLive = (m: Movie) => m.kind !== 'movie';
@@ -404,13 +462,13 @@ function baseProgramme(cinema: Cinema, screen: Screen, key: string): { time: str
   const slot = SCREEN_SLOTS.get(`${cinema.id}|${screen.id}`) ?? 0;
   const day = Number(key.slice(6, 8));
   const weekend = [0, 6].includes(parseDateKey(key).getDay());
-  const headliners = MOVIES.filter((m) => m.featured);
-  const rest = MOVIES.filter((m) => !m.featured);
+  const headliners = BASE_MOVIES.filter((m) => m.featured);
+  const rest = BASE_MOVIES.filter((m) => !m.featured);
   const lead = headliners[(slot + day) % headliners.length];
   const second = rest[(slot + day * 3) % rest.length];
   const pattern = rng() < 0.5 ? [lead, second, lead, lead, second] : [lead, lead, second, lead, second];
 
-  const suited = EVENTS.filter((e) => EVENT_HALLS[e.id]?.includes(screen.hallId) && (weekend || !DAY_EVENTS.has(e.id)));
+  const suited = BASE_EVENTS.filter((e) => EVENT_HALLS[e.id]?.includes(screen.hallId) && (weekend || !DAY_EVENTS.has(e.id)));
   const event = suited.length && (slot * 5 + day * 3) % 7 < 3 ? suited[(slot + day) % suited.length] : null;
   const eventFrom = event && DAY_EVENTS.has(event.id) ? 13 * 60 + 30 : 18 * 60 + 15;
 

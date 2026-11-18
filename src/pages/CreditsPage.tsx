@@ -44,13 +44,13 @@ export default function CreditsPage() {
       </ul>
       <h2>Live shows</h2>
       <ul className="credit-list">
-        {EVENTS.filter((e) => e.photo).map((e) => (
+        {EVENTS.filter((e) => e.photo?.license).map((e) => (
           <Credit key={e.id} label={e.title} photo={e.photo!} />
         ))}
       </ul>
       <h2>Movie posters</h2>
       <ul className="credit-list">
-        {MOVIES.filter((m) => m.poster).map((m) => (
+        {MOVIES.filter((m) => m.poster?.page.includes('wikipedia.org')).map((m) => (
           <li key={m.id}>
             <span className="credit-label">{m.title}</span>
             <span className="muted">

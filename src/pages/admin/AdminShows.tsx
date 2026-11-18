@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CINEMAS } from '../../data/cinemas';
-import { EVENTS, KIND_LABEL, MOVIES, setScheduleChanges, upcomingDays, type Kind } from '../../data/movies';
+import { EVENTS, KIND_LABEL, MOVIES, upcomingDays, type Kind } from '../../data/movies';
+import { loadCatalog } from '../../lib/catalog';
 import { api, type AdminScreenDay, type AdminShow } from '../../lib/api';
 import { useTitle } from '../../lib/useTitle';
 
@@ -19,7 +20,7 @@ export default function AdminShows() {
 
   const load = () => api.admin.shows(cinemaId, date).then((r) => setScreens(r.screens), (e: Error) => setError(e.message));
   // the rest of the site lists shows from the same changes, so pull them in after every edit
-  const refreshSite = () => api.schedule().then(setScheduleChanges).catch(() => {});
+  const refreshSite = () => loadCatalog().catch(() => {});
 
   useEffect(() => {
     setScreens(null);

@@ -267,6 +267,7 @@ def run() -> None:
             spage.wait_for_url(re.compile(r"#/admin"))
             expect(spage.locator(".admin-tiles dd").first).to_contain_text("₹")
             spage.get_by_role("link", name="Shows", exact=True).click()
+            spage.get_by_label("Day").select_option(index=1)  # tomorrow, so late in the day there are still shows to cancel
             row = spage.locator(".admin-list li").filter(has=spage.get_by_role("button", name="Cancel", exact=True)).first
             title = row.locator("b").inner_text()
             row.get_by_role("button", name="Cancel", exact=True).click()
@@ -275,9 +276,34 @@ def run() -> None:
             spage.get_by_role("button", name="Restore").first.click()
             expect(spage.locator(".form-ok")).to_contain_text("back on sale")
             spage.screenshot(path=SHOTS / "08-admin-shows.png")
+
+            # add a live show title, then take it away again
+            spage.get_by_role("link", name="Titles", exact=True).click()
+            form = spage.locator(".admin-title-form")
+            form.get_by_label("Type").select_option("theatre")
+            form.get_by_label("Title").fill("Test Play Tonight")
+            form.get_by_label("Genres, comma-separated").fill("Drama")
+            form.get_by_label("Language").fill("Hindi")
+            form.get_by_label("Summary").fill("A short play written for the browser tests.")
+            form.get_by_role("button", name="Add Title").click()
+            expect(spage.locator(".form-ok")).to_contain_text("Test Play Tonight is added")
+            row = spage.locator(".admin-list li").filter(has_text="Test Play Tonight")
+            row.get_by_role("button", name="Remove", exact=True).click()
+            row.get_by_role("button", name="Remove Title").click()
+            expect(spage.locator(".form-ok")).to_contain_text("is removed")
+
+            # change a price and put it back
+            spage.get_by_role("link", name="Prices", exact=True).click()
+            panel = spage.locator(".admin-price-grid form").filter(has_text="Standard")
+            panel.locator("input").first.fill("200")
+            panel.get_by_role("button", name="Save Prices").click()
+            expect(spage.locator(".form-ok")).to_contain_text("prices are saved")
+            expect(panel.locator("input").first).to_have_value("200")
+            panel.get_by_role("button", name="Reset to Defaults").click()
+            expect(spage.locator(".form-ok")).to_contain_text("back to the defaults")
             staff.close()
 
-        check("admin: sign in as staff, cancel and restore a show", admin_flow)
+        check("admin: shows, titles and prices", admin_flow)
 
         def not_found():
             go(page, "/no-such-page")

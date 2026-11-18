@@ -289,6 +289,25 @@ export function buildLayout(config: HallConfig): HallLayout {
   };
 }
 
+const DEFAULT_PRICES = new Map(HALLS.flatMap((h) => h.zones.map((z) => [`${h.id}|${z.id}`, z.price] as const)));
+
+/** A cinema's own price for one seat zone of a hall model, replacing the default. */
+export interface PriceOverride {
+  hallId: string;
+  zoneId: string;
+  price: number;
+}
+
+/** Applies the admin's prices. Seats point at their zone, so every price shown or charged follows. */
+export function setZonePrices(overrides: PriceOverride[]) {
+  for (const h of HALLS) for (const z of h.zones) z.price = DEFAULT_PRICES.get(`${h.id}|${z.id}`)!;
+  for (const o of overrides) {
+    const zone = HALLS.find((h) => h.id === o.hallId)?.zones.find((z) => z.id === o.zoneId);
+    if (zone) zone.price = o.price;
+  }
+}
+export const defaultPrice = (hallId: string, zoneId: string) => DEFAULT_PRICES.get(`${hallId}|${zoneId}`);
+
 const layoutCache = new Map<string, HallLayout>();
 export function getLayout(hallId: string): HallLayout {
   let l = layoutCache.get(hallId);

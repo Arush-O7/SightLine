@@ -31,6 +31,8 @@ const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
 const AdminShows = lazy(() => import('./pages/admin/AdminShows'));
 const AdminBookings = lazy(() => import('./pages/admin/AdminBookings'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminTitles = lazy(() => import('./pages/admin/AdminTitles'));
+const AdminPrices = lazy(() => import('./pages/admin/AdminPrices'));
 const DemoInboxPage = lazy(() => import('./pages/DemoInboxPage'));
 
 function ScrollToTop() {
@@ -125,6 +127,8 @@ export default function App() {
                 <Route index element={<AdminOverview />} />
                 <Route path="shows" element={<AdminShows />} />
                 <Route path="bookings" element={<AdminBookings />} />
+                <Route path="titles" element={<AdminTitles />} />
+                <Route path="prices" element={<AdminPrices />} />
                 <Route path="users" element={<AdminUsers />} />
               </Route>
               <Route path="*" element={<NotFound />} />

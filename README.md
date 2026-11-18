@@ -52,7 +52,7 @@ On a phone the 3D view sits above the seat map:
 - **Live shows:** stand-up comedy, concerts, live cricket screenings and plays, booked the same way as movies.
 - **Cinema pages:** a photo of each cinema, its lobby and snack counter, and a picture of every auditorium rendered from its 3D model.
 - **Real posters:** every movie shows its official theatrical poster.
-- **Admin:** a sales overview, adding, cancelling and restoring shows (cancelling refunds and emails every customer), all bookings, and customer roles.
+- **Admin:** a sales overview; adding, cancelling and restoring shows (cancelling refunds and emails every customer); adding new movies and live shows; setting seat prices for each auditorium type; all bookings; and customer roles.
 - **Accounts:** email and password or Google sign-in, email confirmation, password reset, a signed-in devices list and account deletion.
 - **Payments:** UPI, card and pay at the cinema, through a built-in test gateway. Tickets show the GST included.
 - **Email:** confirmation, ticket, cancellation and refund, and password reset emails.
@@ -75,7 +75,7 @@ Open [localhost:5173](http://localhost:5173). With no settings the data lives in
 ## Tests
 
 ```bash
-npm run test:api   # 134 API checks, against a server started on port 8799
+npm run test:api   # 152 API checks, against a server started on port 8799
 npm run test:e2e   # 31 browser checks in Chrome, with npm run dev running
 ```
 

@@ -8,7 +8,7 @@ import HallPlan from '../components/HallPlan';
 import MovieCard from '../components/MovieCard';
 import SeatDetails from '../components/SeatDetails';
 import { CINEMAS } from '../data/cinemas';
-import { EVENTS, LANGUAGES, MOVIES, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
+import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
 import { useTitle } from '../lib/useTitle';
@@ -89,7 +89,7 @@ function SeatDemo({ show }: { show: Show | null }) {
 export default function Home() {
   useTitle();
   const [params, setParams] = useSearchParams();
-  const lang = params.get('lang') && LANGUAGES.includes(params.get('lang')!) ? params.get('lang')! : 'All';
+  const lang = params.get('lang') && languages().includes(params.get('lang')!) ? params.get('lang')! : 'All';
   const query = params.get('q') ?? '';
   const update = (key: string, value: string | null) =>
     setParams(
@@ -193,7 +193,7 @@ export default function Home() {
             />
           </label>
           <div className="chips" role="group" aria-label="Filter by language">
-            {['All', ...LANGUAGES].map((l) => (
+            {['All', ...languages()].map((l) => (
               <button key={l} type="button" aria-pressed={lang === l} className={`chip ${lang === l ? 'on' : ''}`} onClick={() => update('lang', l === 'All' ? null : l)}>
                 {l}
               </button>

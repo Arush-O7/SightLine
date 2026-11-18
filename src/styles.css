@@ -893,3 +893,20 @@ span.actions { display: flex; justify-content: flex-end; }
 .cinema-lobby-label { position: absolute; left: 12px; top: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(11, 11, 12, 0.82); font-size: 13px; font-weight: 500; }
 @media (max-width: 900px) { .cinema-photos { grid-template-columns: 1fr; } .cinema-lobby { aspect-ratio: 16 / 9; min-height: 0; } }
 .credit-list li > .muted { max-width: 68ch; }
+
+/* admin forms: titles and prices */
+.admin-title-form { display: grid; gap: 16px; justify-items: start; }
+.admin-form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.admin-form-grid .wide { grid-column: span 2; }
+.admin-form-grid .full { grid-column: 1 / -1; }
+.admin-form-grid .field-inline input, .admin-form-grid .field-inline select { min-width: 0; width: 100%; }
+.field-inline textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--text); font: inherit; font-size: 15px; resize: vertical; }
+.field-inline textarea:focus-visible { outline: none; border-color: var(--text); }
+.admin-price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.admin-price-zones { display: grid; gap: 12px; margin: 14px 0 16px; }
+.price-input { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.price-input input { width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
+.admin-price-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-tabs { flex-wrap: wrap; }
+@media (max-width: 900px) { .admin-form-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .admin-form-grid { grid-template-columns: 1fr; } .admin-form-grid .wide { grid-column: auto; } }

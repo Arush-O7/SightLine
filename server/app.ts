@@ -16,20 +16,24 @@ import {
   formatTime,
   getMovie,
   getScheduleChanges,
+  isCustomTitle,
   isLive,
+  setCustomTitles,
   money,
   parseShow,
   screenDay,
   setScheduleChanges,
   showsFor,
   venueOf,
+  type Kind,
   type ScheduleChange,
   type Show,
+  type TitleRecord,
 } from '../src/data/movies.js';
 import { CINEMAS, getCinema } from '../src/data/cinemas.js';
 import { hashString, mulberry32 } from '../src/lib/rng.js';
 import { movieMedia, tmdbConfigured } from './media.js';
-import { findBestSeats, getHall, getLayout, type HallLayout } from '../src/lib/hall.js';
+import { HALLS, defaultPrice, findBestSeats, getHall, getLayout, setZonePrices, type HallLayout, type PriceOverride } from '../src/lib/hall.js';
 import { getDb, isUniqueViolation, type Database, type Query } from './db.js';
 import { charge } from './gateway.js';
 import { GoogleError, googleAuthUrl, googleConfigured, googleProfile } from './google.js';
@@ -180,10 +184,20 @@ async function requireAdmin(db: Database, req: IncomingMessage) {
   return user;
 }
 
-/* admin changes to the generated programme, shared by every server process through the database */
+/* what cinema staff changed: added titles, prices and the programme, shared by every server process through the database */
 let scheduleLoadedAt = 0;
+let customTitles: TitleRecord[] = [];
+let priceOverrides: PriceOverride[] = [];
 async function syncSchedule(db: Query, force = false) {
   if (!force && Date.now() - scheduleLoadedAt < 3000) return;
+  customTitles = (await db.all<{ data: string }>('SELECT data FROM custom_titles ORDER BY created_at')).map((r) => JSON.parse(r.data) as TitleRecord);
+  setCustomTitles(customTitles);
+  priceOverrides = (await db.all<{ hall_id: string; zone_id: string; price: number }>('SELECT hall_id, zone_id, price FROM zone_prices')).map((r) => ({
+    hallId: r.hall_id,
+    zoneId: r.zone_id,
+    price: Number(r.price),
+  }));
+  setZonePrices(priceOverrides);
   const rows = await db.all<{ action: string; movie_id: string; cinema_id: string; screen_id: string; date_key: string; time: string }>(
     'SELECT action, movie_id, cinema_id, screen_id, date_key, time FROM schedule_changes ORDER BY id',
   );
@@ -796,7 +810,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
   if (method === 'GET' && path[0] === 'schedule') {
     res.setHeader('Cache-Control', 'no-store');
     await syncSchedule(db, true);
-    return send(res, 200, { changes: getScheduleChanges() });
+    return send(res, 200, { changes: getScheduleChanges(), titles: customTitles, prices: priceOverrides });
   }
 
   if (method === 'GET' && path[0] === 'config') {
@@ -833,7 +847,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       if (!isLoopback(req)) throw new ApiError(403, 'local_only', 'Reset is only allowed from the machine running the server.');
       await readJson(req);
       await db.tx(async (q) => {
-        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'users']) {
+        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'custom_titles', 'zone_prices', 'users']) {
           await q.run(`DELETE FROM ${table}`);
         }
       });
@@ -1514,7 +1528,127 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     return send(res, 200, { user: await loadUser(db, Number(path[1])) });
   }
 
+  // every movie and live show; the ones staff added can be removed
+  if (method === 'GET' && path[0] === 'titles') {
+    return send(res, 200, {
+      titles: TITLES.map((t) => ({ id: t.id, title: t.title, kind: t.kind, runtime: t.runtime, language: t.language, custom: isCustomTitle(t.id) })),
+    });
+  }
+
+  if (method === 'POST' && path[0] === 'titles') {
+    const body = await readJson(req);
+    const record = cleanTitle(body);
+    let id = record.id;
+    for (let n = 2; getMovie(id) || (await db.get('SELECT 1 AS x FROM custom_titles WHERE id = ?', id)); n++) id = `${record.id}-${n}`;
+    const saved = { ...record, id };
+    await db.run('INSERT INTO custom_titles (id, data, created_by, created_at) VALUES (?, ?, ?, ?)', id, JSON.stringify(saved), admin.id, Date.now());
+    await syncSchedule(db, true);
+    return send(res, 201, { title: saved });
+  }
+
+  if (method === 'DELETE' && path[0] === 'titles' && path[1]) {
+    const id = path[1];
+    if (!isCustomTitle(id)) throw new ApiError(409, 'built_in_title', 'Only titles your team added can be removed.');
+    if (!(await db.get('SELECT 1 AS x FROM custom_titles WHERE id = ?', id))) throw new ApiError(404, 'title_not_found', 'No such title.');
+    const upcoming = (await db.all<{ show_id: string }>('SELECT show_id FROM bookings WHERE movie_id = ?', id)).filter(
+      (b) => (parseShow(b.show_id)?.start.getTime() ?? 0) > Date.now(),
+    );
+    if (upcoming.length) throw new ApiError(409, 'has_bookings', `${upcoming.length} upcoming ${upcoming.length === 1 ? 'booking needs' : 'bookings need'} cancelling first. Cancel its shows, then remove it.`);
+    await db.tx(async (q) => {
+      await q.run('DELETE FROM schedule_changes WHERE movie_id = ?', id);
+      await q.run('DELETE FROM custom_titles WHERE id = ?', id);
+    });
+    await syncSchedule(db, true);
+    return send(res, 200, { ok: true });
+  }
+
+  // seat prices per zone of each auditorium type
+  if (method === 'GET' && path[0] === 'prices') {
+    return send(res, 200, {
+      halls: HALLS.map((h) => ({
+        hallId: h.id,
+        format: h.format,
+        zones: h.zones.map((z) => ({ id: z.id, name: z.name, price: z.price, defaultPrice: defaultPrice(h.id, z.id) ?? z.price })),
+      })),
+    });
+  }
+
+  if (method === 'PUT' && path[0] === 'prices') {
+    const body = await readJson(req);
+    const list = Array.isArray(body.prices) ? body.prices : [];
+    const clean = list.map((p: Record<string, unknown>) => {
+      const hall = HALLS.find((h) => h.id === p.hallId);
+      const zone = hall?.zones.find((z) => z.id === p.zoneId);
+      const price = Number(p.price);
+      if (!hall || !zone) throw bad('invalid_zone', 'Unknown auditorium or seat zone.');
+      if (!Number.isInteger(price) || price < 50 || price > 5000) throw bad('invalid_price', `${hall.format}, ${zone.name}: enter a whole number of rupees from 50 to 5000.`);
+      return { hallId: hall.id, zoneId: zone.id, price };
+    });
+    if (!clean.length) throw bad('no_prices', 'Nothing to save.');
+    await db.tx(async (q) => {
+      for (const p of clean) {
+        await q.run('DELETE FROM zone_prices WHERE hall_id = ? AND zone_id = ?', p.hallId, p.zoneId);
+        if (p.price !== defaultPrice(p.hallId, p.zoneId)) {
+          await q.run('INSERT INTO zone_prices (hall_id, zone_id, price, updated_at) VALUES (?, ?, ?, ?)', p.hallId, p.zoneId, p.price, Date.now());
+        }
+      }
+    });
+    await syncSchedule(db, true);
+    return send(res, 200, { ok: true });
+  }
+
   throw new ApiError(404, 'not_found', 'No such endpoint.');
+}
+
+const KINDS: Kind[] = ['movie', 'comedy', 'music', 'sports', 'theatre'];
+const IMAGE_HOSTS = /^https:\/\/(upload\.wikimedia\.org|image\.tmdb\.org)\/[^\s"'<>]+$/;
+
+/** Checks a new title from the admin form; every field is shown on public pages. */
+function cleanTitle(body: Record<string, unknown>): TitleRecord {
+  const text = (key: string, label: string, min: number, max: number) => {
+    const v = typeof body[key] === 'string' ? (body[key] as string).trim().replace(/\s+/g, ' ') : '';
+    if (v.length < min || v.length > max) throw bad(`invalid_${key}`, min ? `${label}: ${min} to ${max} characters.` : `${label}: up to ${max} characters.`);
+    return v;
+  };
+  const list = (key: string, label: string, max: number) => {
+    const raw = typeof body[key] === 'string' ? (body[key] as string) : '';
+    const items = raw
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (items.length > max || items.some((x) => x.length > 40)) throw bad(`invalid_${key}`, `${label}: up to ${max}, separated by commas.`);
+    return items;
+  };
+  const kind = KINDS.find((k) => k === body.kind);
+  if (!kind) throw bad('invalid_kind', 'Choose a movie or a kind of live show.');
+  const title = text('title', 'Title', 2, 80);
+  const runtime = Number(body.runtime);
+  if (!Number.isInteger(runtime) || runtime < 30 || runtime > 300) throw bad('invalid_runtime', 'Running time: 30 to 300 minutes.');
+  const image = text('image', 'Image link', 0, 400);
+  if (image && !IMAGE_HOSTS.test(image)) throw bad('invalid_image', 'Use an image link from upload.wikimedia.org or image.tmdb.org, or leave it empty.');
+  const genres = list('genres', 'Genres', 3);
+  if (!genres.length) throw bad('invalid_genres', 'Add at least one genre.');
+  const id = title
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60) || 'title';
+  return {
+    id,
+    kind,
+    title,
+    tagline: text('tagline', 'Tagline', 0, 80),
+    genres,
+    runtime,
+    cert: text('cert', 'Certificate', 0, 8),
+    language: text('language', 'Language', 2, 30),
+    director: text('director', 'Director', 0, 60),
+    cast: list('cast', kind === 'movie' ? 'Cast' : 'Line-up', 6),
+    synopsis: text('synopsis', 'Summary', 20, 400),
+    released: dateKey(new Date()).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'),
+    image,
+  };
 }
 
 // `url` is the path after /api

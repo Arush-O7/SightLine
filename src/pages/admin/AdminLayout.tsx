@@ -34,6 +34,8 @@ export default function AdminLayout() {
             Overview
           </NavLink>
           <NavLink to="/admin/shows">Shows</NavLink>
+          <NavLink to="/admin/titles">Titles</NavLink>
+          <NavLink to="/admin/prices">Prices</NavLink>
           <NavLink to="/admin/bookings">Bookings</NavLink>
           <NavLink to="/admin/users">Customers</NavLink>
         </nav>

@@ -1,4 +1,5 @@
-import type { ScheduleChange } from '../data/movies';
+import type { ScheduleChange, TitleRecord } from '../data/movies';
+import type { PriceOverride } from './hall';
 /** Thin client for the SightLine API. Every failure becomes an ApiFailure with a message fit to show. */
 
 export interface User {
@@ -84,6 +85,21 @@ export interface AdminScreenDay {
   format: string;
   capacity: number;
   shows: AdminShow[];
+}
+
+export interface AdminTitle {
+  id: string;
+  title: string;
+  kind: string;
+  runtime: number;
+  language: string;
+  custom: boolean;
+}
+
+export interface AdminHallPrices {
+  hallId: string;
+  format: string;
+  zones: { id: string; name: string; price: number; defaultPrice: number }[];
 }
 
 export interface AdminUser extends User {
@@ -208,7 +224,7 @@ export const api = {
   config: () => request<SiteConfig>('GET', '/config'),
   media: () => request<{ movies: Record<string, MovieMedia> }>('GET', '/media').then((r) => r.movies),
   demoLogin: (as: 'user' | 'admin' = 'user') => request<{ user: User }>('POST', '/auth/demo', { as }).then((r) => r.user),
-  schedule: () => request<{ changes: ScheduleChange[] }>('GET', '/schedule').then((r) => r.changes),
+  catalog: () => request<{ changes: ScheduleChange[]; titles: TitleRecord[]; prices: PriceOverride[] }>('GET', '/schedule'),
 
   admin: {
     overview: () => request<AdminOverview>('GET', '/admin/overview'),
@@ -223,6 +239,11 @@ export const api = {
     restoreShow: (showId: string) => request<{ ok: true }>('POST', '/admin/shows/restore', { showId }),
     users: () => request<{ users: AdminUser[] }>('GET', '/admin/users').then((r) => r.users),
     setRole: (id: number, role: 'user' | 'admin') => request<{ user: User }>('PATCH', `/admin/users/${id}`, { role }).then((r) => r.user),
+    titles: () => request<{ titles: AdminTitle[] }>('GET', '/admin/titles').then((r) => r.titles),
+    addTitle: (input: Record<string, string | number>) => request<{ title: TitleRecord }>('POST', '/admin/titles', input).then((r) => r.title),
+    removeTitle: (id: string) => request<{ ok: true }>('DELETE', `/admin/titles/${enc(id)}`),
+    prices: () => request<{ halls: AdminHallPrices[] }>('GET', '/admin/prices').then((r) => r.halls),
+    savePrices: (prices: PriceOverride[]) => request<{ ok: true }>('PUT', '/admin/prices', { prices }),
   },
   forgot: (email: string) => request<{ ok: true }>('POST', '/auth/forgot', { email }),
   resetPassword: (token: string, password: string) => request<{ ok: true }>('POST', '/auth/reset', { token, password }),

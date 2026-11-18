@@ -36,6 +36,12 @@ function devApi(): Plugin {
   return {
     name: 'sightline-dev-api',
     configureServer(server) {
+      // re-run the API with fresh code after an edit to it or to the data it shares with the site
+      server.watcher.on('change', (file) => {
+        if (/[\\/](server|src[\\/](data|lib))[\\/]/.test(file)) {
+          for (const mod of server.moduleGraph.idToModuleMap.values()) if (mod.ssrModule) server.moduleGraph.invalidateModule(mod);
+        }
+      });
       server.middlewares.use('/api', async (req, res) => {
         try {
           const mod = await server.ssrLoadModule('/server/app.ts');
