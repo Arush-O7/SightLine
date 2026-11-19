@@ -12,8 +12,9 @@ Booking sites show a seat map: a grid of identical squares. It tells you where a
 
 - **Sit in any seat before you book.** The booking page opens in a 3D model of that exact auditorium, built in metres from its screen size, row spacing, rake and aisles. The camera sits at seated eye level, so the view matches the seat.
 - **A view score for every seat.** Each of the 3,456 seats across 17 auditoriums gets a score out of 100, so you can compare seats at a glance instead of reading geometry.
+- **The best view left at every showtime.** Each time in the listings carries the best score still free for your group, counting seats other people have booked, so a family of four can see that the 9:50 show still has four seats together scoring 84 while the 15:45 has only 35, before opening either.
 - **Help choosing.** A heatmap of view quality across the hall, side-by-side comparison of two seats, the most-booked seats marked on the map, and a “pick for me” that finds the best seats together for a group.
-- **The full booking flow.** Real movies and live shows, eight real Delhi cinemas, seat holds, test payments by UPI or card, tickets with a QR code and a picture of the view you chose, emails, accounts and an admin side for cinema staff.
+- **The full booking flow.** Real movies and live shows, eight real Delhi cinemas, seat holds, test payments by UPI or card, tickets with a QR code and a picture of the view you chose, directions to the cinema, emails, accounts and an admin side for cinema staff. Seats you chose but didn’t book wait on the home page for you to pick up again.
 
 ![The home page: the headline over a live 3D auditorium, with the movie's real poster on the screen](docs/screenshots/home.jpg)
 
@@ -39,6 +40,7 @@ The same model drives the 3D camera, so the number and the picture always agree.
 
 - **One number first, measurements on request.** Most people want to know whether a seat is good, not its field of view in degrees. The seat card leads with the score and a verdict (“Best in the house”); distance and angles sit behind a Details button.
 - **Show, then select.** Tapping a seat shows its view; tapping again selects it. Trying a seat costs nothing, so comparing a few before choosing is the natural thing to do.
+- **Choose a showtime by what’s left, not by how full it is.** “Filling fast” says how many seats are gone, not whether good ones remain. Each showtime shows the best view still free for the group size you set, and Pick for Me on the booking page uses the same number, so the seats the listing promised are the ones you’re offered.
 - **Social proof without inventing it.** Seats booked most often in each type of auditorium get a dot, and the free ones are listed for one-tap picking.
 - **Honest content.** The movies and cinemas are real; showtimes, prices and live shows are illustrative and labelled as such. Where no free photo of a cinema’s lobby exists, a representative photo is used and marked “Representative photo”.
 - **Built for phones.** Most cinema tickets are booked on a phone, often shortly before the show, so every page is designed at 390 px first: the 3D view stacks above the seat map and every control is thumb-sized.
@@ -66,6 +68,8 @@ The browser and the server import the same TypeScript model of every hall, seat 
 
 - **No double-booking under load.** Held and booked seats each have a unique `(show, seat)` constraint and every write runs in a transaction, so two people racing for the last seat can’t both win. Continuing to payment holds seats for 7 minutes; payment only succeeds for seats still held.
 - **Safe retries.** Each payment carries an idempotency key, so a double click or a flaky network retry returns the first booking instead of charging twice.
+- **One clock: Delhi’s.** Every showtime is built, checked and shown in India Standard Time, whatever clock the server or the visitor’s browser runs on, so a server on UTC never moves a 9:30 show or lets one be booked after it starts.
+- **Live availability for a whole listing in one request.** The listing asks the API for the seats booked or held across all its shows at once, then works out the best seats left for the group in the browser from the same hall model the server uses.
 - **A programme without a schedule table.** Showtimes are generated deterministically per cinema, auditorium and day from a seeded random number generator, so every link stays valid. Admin changes (extra shows, cancellations, new titles, prices) are stored as overrides and synced to every server process.
 - **3D that stays fast.** Hundreds of seats are drawn as instanced meshes, the scene loads only when needed so the first paint never waits for Three.js, and the booked view is captured into the ticket as an image.
 - **Security basics done properly.** Passwords hashed with scrypt, sessions stored only as hashes in HttpOnly cookies, Google sign-in with PKCE, state and nonce checks, rate limiting, origin checks on every write, and a strict Content Security Policy.
@@ -75,16 +79,16 @@ The browser and the server import the same TypeScript model of every hall, seat 
 
 | Suite | Checks | Covers |
 |---|---|---|
-| API (`npm run test:api`) | 152 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, admin roles, schedule changes, prices, rate limits, security headers |
-| Browser (`npm run test:e2e`, Playwright) | 32 | The full journey from the home page to a paid ticket and a cancellation, the 3D view, admin pages, phone layouts, and zero errors in the browser console |
+| API (`npm run test:api`) | 157 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, showtime availability, show times in Delhi time, admin roles, schedule changes, prices, rate limits, security headers |
+| Browser (`npm run test:e2e`, Playwright) | 35 | The full journey from the home page to a paid ticket and a cancellation, the best view left on each showtime, picking a booking back up, the 3D view, admin pages, phone layouts, and zero errors in the browser console |
 
-The API suite runs against SQLite and PostgreSQL.
+The API suite runs against SQLite and PostgreSQL, and passes with the server’s clock set to UTC.
 
 ## A closer look
 
-| Showtimes by cinema and auditorium | Seat details |
+| Showtimes with the best view left | Seat details |
 |---|---|
-| ![A movie's showtimes for the day, grouped by cinema and auditorium, each time marked by how full it is](docs/screenshots/showtimes.jpg) | ![The Details pop-up for seat M11: distance, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg) |
+| ![A movie's Sunday showtimes, grouped by cinema and auditorium, each time with the best view score still free for four seats together and how full it is](docs/screenshots/showtimes.jpg) | ![The Details pop-up for seat M11: distance, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg) |
 | **Live shows in the same halls** | **A cinema and its auditoriums** |
 | ![Live shows: comedy, music, cricket screenings and theatre](docs/screenshots/live-shows.jpg) | ![A cinema page with its photo, lobby and auditoriums](docs/screenshots/cinema.jpg) |
 | **Checkout with test payments** | **Ticket with the booked view** |
