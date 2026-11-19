@@ -96,6 +96,8 @@ button.chip:hover { color: var(--text); border-color: var(--line-strong); }
 .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
 .back-link:hover { color: var(--text); }
 .steps { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--faint); }
+.steps li { display: inline-flex; align-items: center; gap: 8px; }
+.steps li svg { color: var(--faint); }
 .steps li.on { color: var(--text); }
 .steps li.done { color: var(--muted); }
 .empty-state { min-height: 62vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding-block: 80px; }
@@ -935,54 +937,31 @@ span.actions { display: flex; justify-content: flex-end; }
 /* listing pages title themselves like a cinema sign */
 .section-head h1.display { font-size: clamp(48px, 6vw, 88px); margin-bottom: 10px; }
 
-/* what the view score measures */
-.score-explain { margin-top: clamp(56px, 7vw, 88px); }
-.score-explain-head { max-width: 640px; }
-.score-explain-head h3 { font-size: clamp(24px, 2.6vw, 30px); }
-.score-explain-head p { margin-top: 10px; font-size: 16px; }
-.score-factors { list-style: none; margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.score-factors li { display: grid; align-content: start; gap: 18px; padding: 22px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
-.score-factor-text h4 { margin: 0; font-size: 18px; font-weight: 600; }
-.score-weight { margin: 4px 0 10px; font-size: 13px; color: var(--accent); font-variant-numeric: tabular-nums; }
-.score-factor-text .muted { font-size: 15px; line-height: 1.55; }
-.sd { display: block; width: 100%; height: auto; background: var(--bg-2); border-radius: 12px; }
-.sd-screen { fill: none; stroke: var(--text); stroke-width: 4; stroke-linecap: round; }
-.sd-line { fill: none; stroke: rgba(236, 235, 231, 0.55); stroke-width: 1.5; stroke-linecap: round; }
-.sd-guide { fill: none; stroke: rgba(236, 235, 231, 0.22); stroke-width: 1.2; stroke-dasharray: 4 5; }
-.sd-wedge { fill: rgba(227, 184, 115, 0.1); }
-.sd-angle { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
-.sd-seat, .sd-eye { fill: var(--accent); }
-.sd-chair { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-
-/* how it works: steps on the left, the screen they describe on the right */
-.steps { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: 40px; align-items: center; }
-.steps-list { display: grid; gap: 8px; }
-.step { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 12px; width: 100%; text-align: left; padding: 18px 18px 18px 16px; border-radius: 16px; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
-.step:hover { background: var(--surface); }
-.step.on { background: var(--surface); border-color: var(--line-strong); }
-.step-n { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 0.9; color: var(--faint); font-variant-numeric: tabular-nums; }
-.step.on .step-n { color: var(--accent); }
-.step-text { display: grid; gap: 6px; }
-.step-title { font-size: 18px; font-weight: 600; color: var(--muted); }
-.step.on .step-title { color: var(--text); }
-.step-body { font-size: 15px; line-height: 1.55; color: var(--muted); }
-.step:not(.on) .step-body { display: none; }
-.step-img-inline { display: none; }
-.steps-stage { position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; border: 1px solid var(--line-strong); background: var(--bg-2); }
-.steps-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; opacity: 0; transition: opacity 0.35s ease; }
-.steps-stage img.on { opacity: 1; }
+/* how it works: the steps on the left, the screen they describe on the right */
+.how { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: 40px; align-items: center; }
+.how-list { display: grid; gap: 8px; }
+.how-step { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 12px; width: 100%; text-align: left; padding: 18px 18px 18px 16px; border-radius: 16px; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+.how-step:hover { background: var(--surface); }
+.how-step.on { background: var(--surface); border-color: var(--line-strong); }
+.how-n { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 0.9; color: var(--faint); font-variant-numeric: tabular-nums; }
+.how-step.on .how-n { color: var(--accent); }
+.how-text { display: grid; gap: 6px; }
+.how-title { font-size: 18px; font-weight: 600; color: var(--muted); }
+.how-step.on .how-title { color: var(--text); }
+.how-body { font-size: 15px; line-height: 1.55; color: var(--muted); }
+.how-step:not(.on) .how-body { display: none; }
+.how-img { display: none; }
+.how-stage { position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; border: 1px solid var(--line-strong); background: var(--bg-2); }
+.how-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; opacity: 0; transition: opacity 0.35s ease; }
+.how-stage img.on { opacity: 1; }
 
 @media (max-width: 900px) {
-  .score-factors, .steps { grid-template-columns: 1fr; }
-  .score-factors li { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); align-items: center; }
-  .steps-stage { display: none; }
-  .steps-list { gap: 36px; }
-  .step, .step:hover, .step.on { cursor: default; background: transparent; border-color: transparent; padding: 0; }
-  .step .step-n { color: var(--accent); }
-  .step .step-title { color: var(--text); }
-  .step:not(.on) .step-body { display: block; }
-  .step-img-inline { display: block; grid-column: 1 / -1; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; border-radius: 14px; border: 1px solid var(--line); margin-top: 12px; }
-}
-@media (max-width: 560px) {
-  .score-factors li { grid-template-columns: 1fr; }
+  .how { grid-template-columns: 1fr; }
+  .how-stage { display: none; }
+  .how-list { gap: 36px; }
+  .how-step, .how-step:hover, .how-step.on { cursor: default; background: transparent; border-color: transparent; padding: 0; }
+  .how-step .how-n { color: var(--accent); }
+  .how-step .how-title { color: var(--text); }
+  .how-step:not(.on) .how-body { display: block; }
+  .how-img { display: block; grid-column: 1 / -1; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; border-radius: 14px; border: 1px solid var(--line); margin-top: 12px; }
 }

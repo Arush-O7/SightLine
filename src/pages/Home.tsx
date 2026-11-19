@@ -4,7 +4,6 @@ import { Search } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
 import EventCard from '../components/EventCard';
 import MovieCard from '../components/MovieCard';
-import { FieldOfViewDiagram, HeadTiltDiagram, OffCentreDiagram } from '../components/ScoreDiagrams';
 import { CINEMAS } from '../data/cinemas';
 import { sized } from '../data/photos';
 import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
@@ -36,27 +35,6 @@ function tourSeats(layout: HallLayout, taken: Set<string>): Seat[] {
   const front = Math.min(2, g.length - 1);
   return [layout.byId.get(layout.bestSeatId)!, free(Math.floor(g.length * 0.55), 1), free(g.length - 1, middle(g.length - 1)), free(front, middle(front))];
 }
-
-const SCORE_FACTORS = [
-  {
-    title: 'Screen in view',
-    weight: 45,
-    body: 'How much of your vision the screen fills. Around 50° feels immersive without making you scan from side to side.',
-    Diagram: FieldOfViewDiagram,
-  },
-  {
-    title: 'Angle to the centre',
-    weight: 30,
-    body: 'How far to the side you sit. The further off-centre, the more skewed the picture looks.',
-    Diagram: OffCentreDiagram,
-  },
-  {
-    title: 'Head tilt',
-    weight: 25,
-    body: 'How far you look up to the middle of the screen. Up to 8° is effortless; the front rows ask for far more.',
-    Diagram: HeadTiltDiagram,
-  },
-];
 
 const STEPS = [
   {
@@ -238,27 +216,6 @@ export default function Home() {
           />
         </div>
 
-        <div className="score-explain">
-          <div className="score-explain-head">
-            <h3>What the view score measures</h3>
-            <p className="muted">
-              Every seat in every auditorium gets a score out of 100, worked out from three measurements taken in the 3D model at seated eye
-              level.
-            </p>
-          </div>
-          <ul className="score-factors">
-            {SCORE_FACTORS.map((f) => (
-              <li key={f.title}>
-                <f.Diagram />
-                <div className="score-factor-text">
-                  <h4>{f.title}</h4>
-                  <p className="score-weight">{f.weight}% of the score</p>
-                  <p className="muted">{f.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
       </section>
 
       <section className="container hs" aria-labelledby="how-title">
@@ -270,8 +227,8 @@ export default function Home() {
             <p className="muted">From a movie to the right seat in under a minute, on a phone or a laptop.</p>
           </div>
         </div>
-        <div className="steps">
-          <div className="steps-list" role="tablist" aria-label="Steps" aria-orientation="vertical">
+        <div className="how">
+          <div className="how-list" role="tablist" aria-label="Steps" aria-orientation="vertical">
             {STEPS.map((step, i) => (
               <button
                 key={step.title}
@@ -281,7 +238,7 @@ export default function Home() {
                 aria-selected={step === STEPS[stepIndex]}
                 aria-controls="step-panel"
                 tabIndex={i === stepIndex ? 0 : -1}
-                className={`step ${i === stepIndex ? 'on' : ''}`}
+                className={`how-step ${i === stepIndex ? 'on' : ''}`}
                 onClick={() => setStepIndex(i)}
                 onKeyDown={(e) => {
                   const next = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
@@ -292,19 +249,19 @@ export default function Home() {
                   document.getElementById(`step-tab-${to}`)?.focus();
                 }}
               >
-                <span className="step-n" aria-hidden="true">
+                <span className="how-n" aria-hidden="true">
                   {i + 1}
                 </span>
-                <span className="step-text">
-                  <span className="step-title">{step.title}</span>
-                  <span className="step-body">{step.body}</span>
+                <span className="how-text">
+                  <span className="how-title">{step.title}</span>
+                  <span className="how-body">{step.body}</span>
                 </span>
                 {/* on phones every step shows its own picture under it */}
-                <img className="step-img-inline" src={step.img} width={1200} height={675} loading="lazy" decoding="async" alt="" />
+                <img className="how-img" src={step.img} width={1200} height={675} loading="lazy" decoding="async" alt="" />
               </button>
             ))}
           </div>
-          <div className="steps-stage" id="step-panel" role="tabpanel" aria-labelledby={`step-tab-${stepIndex}`}>
+          <div className="how-stage" id="step-panel" role="tabpanel" aria-labelledby={`step-tab-${stepIndex}`}>
             {STEPS.map((step, i) => (
               <img
                 key={step.img}

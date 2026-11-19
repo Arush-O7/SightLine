@@ -197,10 +197,12 @@ export default function CheckoutPage() {
         </Link>
         <ol className="steps" aria-label="Booking progress">
           <li className="done">Seats</li>
-          <ChevronRight size={14} />
-          <li className="on">Payment</li>
-          <ChevronRight size={14} />
-          <li>Ticket</li>
+          <li className="on" aria-current="step">
+            <ChevronRight size={14} /> Payment
+          </li>
+          <li>
+            <ChevronRight size={14} /> Ticket
+          </li>
         </ol>
         <span className={`hold ${left !== null && left < 60 ? 'low' : ''}`} role="timer" aria-live="off">
           <Timer size={15} /> Seats held for {mm}:{ss}

@@ -306,9 +306,6 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 ### Seat Comparison
 - "Same hall, two seats": two real renders of the same large-screen auditorium with the house lights up, side by side (stacked on phones): first from the front row, then from the best seat. The images stand alone in rounded frames with a hairline border; the sentence above says which is which. No caption, overlay or score on the images.
 
-### Score Explainer
-- Under the Seat Comparison: "What the view score measures" at Headline size, one sentence, then three Surface cards, one per measurement in order of weight (screen in view 45%, angle to the centre 30%, head tilt 25%). Each card leads with a line drawing on Ink Raised (the screen as a thick Paper stroke, sightlines in Paper at 55%, guides dashed at 22%, the measured angle and the seat in Tungsten), then the title, the weight in Tungsten and one plain sentence with the ideal value. The drawings show the same geometry the code measures.
-
 ### How It Works
 - Three steps on the left (a real sequence, so numbered: marquee numerals, Tungsten when active), one large real screenshot of the app on the right in a 16:9 frame. Steps are tabs: clicking or arrow keys switch the screenshot with a short crossfade; only the active step shows its sentence. Under 900px each step shows its own screenshot beneath it and every sentence is visible.
 

@@ -88,17 +88,16 @@ def run() -> None:
         check("home: the two-seat comparison shows both views", seat_comparison)
 
         def how_it_works():
-            expect(page.locator(".score-factors li")).to_have_count(3)
             tab = page.get_by_role("tab", name=re.compile("Sit in any seat"))
             tab.click()
             expect(tab).to_have_attribute("aria-selected", "true")
-            expect(page.locator(".steps-stage img.on")).to_have_attribute("src", re.compile("step-sit"))
+            expect(page.locator(".how-stage img.on")).to_have_attribute("src", re.compile("step-sit"))
             # arrow keys move between steps, as in any tab list
             tab.press("ArrowDown")
             expect(page.get_by_role("tab", name=re.compile("Book and keep the view"))).to_be_focused()
-            expect(page.locator(".steps-stage img.on")).to_have_attribute("src", re.compile("step-book"))
+            expect(page.locator(".how-stage img.on")).to_have_attribute("src", re.compile("step-book"))
 
-        check("home: score explainer and how-it-works steps", how_it_works)
+        check("home: how-it-works steps switch screens", how_it_works)
 
         def language_filter():
             page.get_by_role("button", name="Tamil", exact=True).click()
@@ -177,6 +176,12 @@ def run() -> None:
             expect(page.locator(".hold")).to_contain_text("held", timeout=8000)
 
         check("booking: select a seat, sign in with the demo account, go on to payment", select_and_sign_in)
+
+        def checkout_steps():
+            tops = page.locator(".checkout-top .steps li").evaluate_all("els => els.map(e => Math.round(e.getBoundingClientRect().top))")
+            assert len(tops) == 3 and len(set(tops)) == 1, f"steps are not in one line: {tops}"
+
+        check("checkout: the progress steps sit in one line", checkout_steps)
 
         def checkout_declined_then_paid():
             expect(page.get_by_role("heading", name="Review and Pay")).to_be_visible()
