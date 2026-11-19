@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type AdminOverview as Overview } from '../../lib/api';
 import { formatDate, formatTime, money, parseDateKey } from '../../data/movies';
+import { TIME_ZONE } from '../../lib/time';
 import { useTitle } from '../../lib/useTitle';
 
 function RevenueChart({ daily }: { daily: Overview['daily'] }) {
   const max = Math.max(1, ...daily.map((d) => d.revenue));
   const [hover, setHover] = useState<number | null>(null);
-  const label = (key: string) => parseDateKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const label = (key: string) => parseDateKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: TIME_ZONE });
   return (
     <figure className="admin-chart">
       <figcaption>

@@ -1,4 +1,5 @@
 import { hashString, mulberry32 } from '../lib/rng.js';
+import { TIME_ZONE, delhiClock, delhiTime } from '../lib/time.js';
 import type { HallLayout } from '../lib/hall';
 import type { SceneKind } from '../lib/art';
 import { CINEMAS, getCinema, type Cinema, type Screen } from './cinemas.js';
@@ -370,11 +371,25 @@ export const getMovie = (id: string | undefined) => TITLES.find((m) => m.id === 
 export const isLive = (m: Movie) => m.kind !== 'movie';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-export const dateKey = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-
-export function parseDateKey(key: string): Date {
-  return new Date(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)));
+/** The Delhi calendar day of an instant, as YYYYMMDD. */
+export function dateKey(d: Date | number): string {
+  const c = delhiClock(d);
+  return `${c.year}${pad(c.month)}${pad(c.day)}`;
 }
+
+/** Midnight in Delhi at the start of a YYYYMMDD day. */
+export function parseDateKey(key: string): Date {
+  return delhiTime(Number(key.slice(0, 4)), Number(key.slice(4, 6)), Number(key.slice(6, 8)));
+}
+
+/** Today's key in Delhi, or another day counted from it. */
+export function dayKey(offset = 0): string {
+  const today = delhiClock();
+  return dateKey(delhiTime(today.year, today.month, today.day + offset, 12));
+}
+
+const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: TIME_ZONE });
+const monthName = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: TIME_ZONE });
 
 export interface Day {
   key: string;
@@ -387,15 +402,16 @@ export interface Day {
 
 export function upcomingDays(count = 7): Day[] {
   const out: Day[] = [];
-  const now = new Date();
+  const today = delhiClock();
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    // noon sits safely inside the day, wherever the visitor is
+    const d = delhiTime(today.year, today.month, today.day + i, 12);
     out.push({
       key: dateKey(d),
       date: d,
-      weekday: i === 0 ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' }),
-      dayNum: String(d.getDate()),
-      month: d.toLocaleDateString(undefined, { month: 'short' }),
+      weekday: i === 0 ? 'Today' : weekdayName.format(d),
+      dayNum: String(delhiClock(d).day),
+      month: monthName.format(d),
       isToday: i === 0,
     });
   }
@@ -461,7 +477,7 @@ function baseProgramme(cinema: Cinema, screen: Screen, key: string): { time: str
   // every auditorium in the city gets a slot number, so the smaller releases are spread across all of them
   const slot = SCREEN_SLOTS.get(`${cinema.id}|${screen.id}`) ?? 0;
   const day = Number(key.slice(6, 8));
-  const weekend = [0, 6].includes(parseDateKey(key).getDay());
+  const weekend = [0, 6].includes(delhiClock(parseDateKey(key)).weekday);
   const headliners = BASE_MOVIES.filter((m) => m.featured);
   const rest = BASE_MOVIES.filter((m) => !m.featured);
   const lead = headliners[(slot + day) % headliners.length];
@@ -522,9 +538,8 @@ export function screenDay(cinema: Cinema, screen: Screen, key: string): { show: 
 }
 
 function makeShow(movieId: string, key: string, cinema: Cinema, screen: Screen, time: string): Show {
-  const d = parseDateKey(key);
   const [h, m] = time.split(':').map(Number);
-  d.setHours(h, m, 0, 0);
+  const d = delhiTime(Number(key.slice(0, 4)), Number(key.slice(4, 6)), Number(key.slice(6, 8)), h, m);
   return {
     id: `${movieId}.${key}.${cinema.id}~${screen.id}.${time.replace(':', '')}`,
     movieId,
@@ -623,11 +638,11 @@ export function venueOf(show: Pick<Show, 'cinemaId' | 'screenId'>): { cinema: Ci
   return cinema && screen ? { cinema, screen } : null;
 }
 
-export const formatTime = (d: Date) =>
-  d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-
-export const formatDate = (d: Date) =>
-  d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+// shows are listed in Delhi time, in the visitor's own format (17:55 or 5:55 PM)
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: TIME_ZONE });
+const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: TIME_ZONE });
+export const formatTime = (d: Date) => timeFormat.format(d);
+export const formatDate = (d: Date) => dateFormat.format(d);
 
 export const formatRuntime = (min: number) => `${Math.floor(min / 60)}h ${pad(min % 60)}m`;
 
@@ -649,7 +664,7 @@ export function crowdFor(show: Show, layout: HallLayout): Set<string> {
   const cached = crowdCache.get(show.id);
   if (cached) return new Set(cached);
   const rng = mulberry32(hashString(show.id));
-  const hour = show.start.getHours();
+  const hour = delhiClock(show.start).hour;
   const base = hour < 12 ? 0.16 : hour < 16 ? 0.26 : hour < 19 ? 0.4 : hour < 22 ? 0.56 : 0.34;
   const fill = base + (rng() - 0.5) * 0.16;
   const taken = new Set<string>();
@@ -691,8 +706,8 @@ export const POPULAR_WEEKS = 4;
  * to 1. Every cinema auditorium built on the same model counts.
  */
 export function seatPopularity(hallId: string, layout: HallLayout): Map<string, number> {
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
+  const now = delhiClock();
+  const today = delhiTime(now.year, now.month, now.day, 12);
   const cacheKey = `${hallId}|${dateKey(today)}`;
   const hit = popularityCache.get(cacheKey);
   if (hit) return hit;

@@ -1,11 +1,11 @@
 import CinemaCard from '../components/CinemaCard';
 import { CINEMAS } from '../data/cinemas';
-import { dateKey } from '../data/movies';
+import { dayKey } from '../data/movies';
 import { useTitle } from '../lib/useTitle';
 
 export default function CinemasPage() {
   useTitle('Cinemas');
-  const today = dateKey(new Date());
+  const today = dayKey();
   return (
     <div className="container section cinemas-page">
       <div className="section-head">

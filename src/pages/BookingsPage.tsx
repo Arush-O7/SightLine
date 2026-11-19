@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ticket, Trash2 } from 'lucide-react';
 import { Poster } from '../components/Art';
-import { formatDate, formatTime, getMovie, money, parseShow, venueOf } from '../data/movies';
+import { dateKey, dayKey, formatDate, formatTime, getMovie, money, parseDateKey, parseShow, venueOf } from '../data/movies';
 import { getHall } from '../lib/hall';
 import { api, errorMessage } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
@@ -75,8 +75,7 @@ export default function BookingsPage() {
 
   /** "Today", "Tomorrow", "In 3 days" */
   const when = (start: Date) => {
-    const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const days = Math.round((day(start) - day(new Date())) / 86_400_000);
+    const days = Math.round((parseDateKey(dateKey(start)).getTime() - parseDateKey(dayKey()).getTime()) / 86_400_000);
     return days <= 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${days} days`;
   };
 

@@ -72,8 +72,10 @@ async function googleSignIn(c, who, next = '/tickets') {
   return { start, url, back, state: url.searchParams.get('state') };
 }
 
-const d = new Date(Date.now() + 2 * 86400000);
-const key = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+// the date two days out in Delhi, where every cinema is, whatever clock this machine runs on
+const IST = 330 * 60000;
+const key = new Date(Date.now() + 2 * 86400000 + IST).toISOString().slice(0, 10).replaceAll('-', '');
+const delhiStart = (k, hhmm) => Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), +hhmm.slice(0, 2), +hhmm.slice(3, 5)) - IST;
 // a large-screen show two days out, taken from the API's own schedule
 const listing = await (await fetch(`${BASE}/api/movies/ramayana-rise-of-a-legend/shows?date=${key}`)).json();
 const SHOW = (listing.shows.find((x) => x.hallId === 'h2') ?? listing.shows[0]).id;
@@ -89,6 +91,7 @@ let r = await anon('GET', '/health');
 check('health', r.status === 200 && r.data.ok);
 
 check('schedule lists real cinemas with screen and hall model', listing.shows.length > 5 && listing.shows.every((x) => /~/.test(x.id) && x.cinemaId && x.screenId && /^h[123]$/.test(x.hallId)), JSON.stringify(listing).slice(0, 200));
+check('show times are Delhi time on any server clock', listing.shows.every((x) => x.start === delhiStart(key, x.time)), JSON.stringify(listing.shows[0]));
 r = await anon('GET', '/movies/no-such-movie/shows');
 check('unknown movie has no schedule', r.status === 404);
 r = await anon('GET', '/media');

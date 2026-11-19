@@ -12,6 +12,7 @@ import {
   TITLES,
   crowdFor,
   dateKey,
+  dayKey,
   formatDate,
   formatTime,
   getMovie,
@@ -20,6 +21,7 @@ import {
   isLive,
   setCustomTitles,
   money,
+  parseDateKey,
   parseShow,
   screenDay,
   setScheduleChanges,
@@ -32,6 +34,7 @@ import {
 } from '../src/data/movies.js';
 import { CINEMAS, getCinema } from '../src/data/cinemas.js';
 import { hashString, mulberry32 } from '../src/lib/rng.js';
+import { delhiTime } from '../src/lib/time.js';
 import { movieMedia, tmdbConfigured } from './media.js';
 import { HALLS, defaultPrice, findBestSeats, getHall, getLayout, setZonePrices, type HallLayout, type PriceOverride } from '../src/lib/hall.js';
 import { getDb, isUniqueViolation, type Database, type Query } from './db.js';
@@ -541,10 +544,6 @@ const ensureDemoAdmin = (db: Query) => ensureAccount(db, DEMO_ADMIN, 'admin', 90
 /** Gives the demo account a believable history: two upcoming tickets and one already watched. */
 async function seedDemoBookings(db: Database, userId: number) {
   if (await db.get('SELECT 1 AS x FROM bookings WHERE user_id = ?', userId)) return;
-  const day = (offset: number) => {
-    const d = new Date();
-    return dateKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() + offset));
-  };
   const plan: { movie: number; dayOffset: number; slot: number; party: number; method: string; instrument: string; status: string }[] = [
     { movie: 0, dayOffset: 1, slot: 0, party: 2, method: 'upi', instrument: 'de••@okbank', status: 'paid' },
     { movie: 2, dayOffset: 3, slot: 1, party: 3, method: 'card', instrument: 'Card •••• 1111', status: 'paid' },
@@ -554,7 +553,7 @@ async function seedDemoBookings(db: Database, userId: number) {
   await db.tx(async (q) => {
     for (const item of plan) {
       const movie = MOVIES[item.movie];
-      const groups = showsFor(movie, day(item.dayOffset));
+      const groups = showsFor(movie, dayKey(item.dayOffset));
       if (!groups.length) continue;
       const group = groups[item.slot % groups.length];
       const show = group.shows[group.shows.length - 1];
@@ -615,7 +614,6 @@ async function seedDemoCustomers(db: Database) {
     const email = `${name.toLowerCase().replace(' ', '.')}@example.com`;
     ids.push(await ensureAccount(db, { name, email, password: randomBytes(12).toString('hex') }, 'user', 20 + i * 4));
   }
-  const today = new Date();
   const methods = [
     { method: 'upi', instrument: 'UPI ••••@okbank', status: 'paid' },
     { method: 'card', instrument: 'Card •••• 1111', status: 'paid' },
@@ -624,7 +622,7 @@ async function seedDemoCustomers(db: Database) {
   await db.tx(async (q) => {
     for (let n = 0; n < 46; n++) {
       const offset = Math.floor(rng() * 19) - 13; // two weeks back to five days ahead
-      const key = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset));
+      const key = dayKey(offset);
       const title = rng() < 0.75 ? MOVIES[Math.floor(rng() * MOVIES.length)] : TITLES[MOVIES.length + Math.floor(rng() * (TITLES.length - MOVIES.length))];
       const shows = showsFor(title, key).flatMap((g) => g.shows);
       if (!shows.length) continue;
@@ -1328,7 +1326,7 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     const users = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM users');
     const now = Date.now();
     const sold = rows.filter((r) => r.paymentStatus === 'paid' || r.paymentStatus === 'due');
-    const startOfToday = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+    const startOfToday = parseDateKey(dayKey()).getTime();
     const daily = Array.from({ length: 14 }, (_, i) => {
       const from = startOfToday - (13 - i) * DAY_MS;
       const inDay = sold.filter((r) => r.createdAt >= from && r.createdAt < from + DAY_MS);
@@ -1446,7 +1444,7 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     if (!cinema || !screen) throw bad('invalid_screen', 'Choose a cinema and auditorium.');
     if (!/^\d{8}$/.test(date)) throw bad('invalid_date', 'Choose a date.');
     if (!TIME.test(time) || time < '08:00') throw bad('invalid_time', 'Choose a start time between 08:00 and 23:59.');
-    const start = new Date(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)), Number(time.slice(0, 2)), Number(time.slice(3)));
+    const start = delhiTime(Number(date.slice(0, 4)), Number(date.slice(4, 6)), Number(date.slice(6, 8)), Number(time.slice(0, 2)), Number(time.slice(3)));
     if (start.getTime() < Date.now() + 30 * 60_000) throw bad('too_soon', 'New shows must start at least 30 minutes from now.');
     if (start.getTime() > Date.now() + 30 * DAY_MS) throw bad('too_far', 'Schedule shows up to 30 days ahead.');
     // the auditorium must be free: the new show plus cleaning time can't overlap another

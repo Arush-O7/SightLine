@@ -8,6 +8,7 @@ import { formatDate, formatRuntime, formatTime, getMovie, money, parseShow, type
 import { getHall, type HallConfig } from '../lib/hall';
 import { api, errorMessage, type Booking } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
+import { TIME_ZONE } from '../lib/time';
 import { useTitle } from '../lib/useTitle';
 import { TicketSkeleton } from '../components/Skeleton';
 
@@ -75,7 +76,7 @@ function PriceBreakdown({ booking }: { booking: Booking }) {
         </div>
       </dl>
       <p className="muted small">
-        Booked {new Date(booking.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · Booking {booking.id}
+        Booked {new Date(booking.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE })} · Booking {booking.id}
         {booking.paymentRef && booking.paymentStatus === 'paid' ? ` · Payment ${booking.paymentRef}` : ''}
       </p>
     </section>

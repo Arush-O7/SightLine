@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type AdminUser } from '../../lib/api';
 import { money } from '../../data/movies';
 import { useStore } from '../../lib/store';
+import { TIME_ZONE } from '../../lib/time';
 import { useTitle } from '../../lib/useTitle';
 
 export default function AdminUsers() {
@@ -60,7 +61,7 @@ export default function AdminUsers() {
                       {u.emailVerified ? '' : ' · not confirmed'}
                     </span>
                   </td>
-                  <td className="nowrap">{new Date(u.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                  <td className="nowrap">{new Date(u.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE })}</td>
                   <td className="num">{u.bookings}</td>
                   <td className="num">{money(u.spent)}</td>
                   <td>

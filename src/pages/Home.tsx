@@ -6,7 +6,7 @@ import EventCard from '../components/EventCard';
 import MovieCard from '../components/MovieCard';
 import { CINEMAS } from '../data/cinemas';
 import { sized } from '../data/photos';
-import { EVENTS, MOVIES, languages, crowdFor, dateKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
+import { EVENTS, MOVIES, languages, crowdFor, dayKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
 import { getLayout, type HallLayout, type Seat } from '../lib/hall';
 import { useTitle } from '../lib/useTitle';
 
@@ -77,7 +77,7 @@ export default function Home() {
     if (params.get('section') === 'movies') requestAnimationFrame(() => moviesRef.current?.scrollIntoView({ block: 'start' }));
   }, [params]);
 
-  const today = dateKey(new Date());
+  const today = dayKey();
   const featured = MOVIES[0];
   const heroShow = useMemo(() => nextShowIn(featured.id, 'h2'), [featured.id]);
   const heroLayout = getLayout(heroShow?.hallId ?? 'h2');
