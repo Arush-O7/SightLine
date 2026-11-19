@@ -648,10 +648,6 @@ a.time:hover small { color: var(--ink-soft); }
 .signin-row p, .signin-method > p.muted { font-size: 13.5px; }
 .account-danger { grid-column: 1 / -1; }
 
-/* hall plans drawn from the real hall geometry */
-
-/* home: try three seats without leaving the page */
-
 /* phones and tablets: every control is a full thumb-sized target */
 @media (pointer: coarse) {
   .chip { min-height: 44px; min-width: 44px; padding-inline: 12px; }
@@ -751,7 +747,7 @@ a.time:hover small { color: var(--ink-soft); }
 
 /* cinema page */
 .cinemas-page, .cinema-page { padding-top: 40px; }
-.cinema-hero { position: relative; margin: 0; border-radius: var(--radius); overflow: hidden; aspect-ratio: 21 / 8; min-height: 260px; background: var(--bg-2); }
+.cinema-hero { position: relative; width: 100%; margin: 0; border-radius: var(--radius); overflow: hidden; aspect-ratio: 21 / 8; min-height: 260px; background: var(--bg-2); }
 .cinema-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cinema-hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 11, 12, 0) 35%, rgba(11, 11, 12, 0.88)); }
 .cinema-hero-copy { position: absolute; left: clamp(18px, 3vw, 32px); right: 18px; bottom: clamp(18px, 3vw, 28px); }
@@ -934,7 +930,6 @@ span.actions { display: flex; justify-content: flex-end; }
 /* the same hall from two seats */
 .cmp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .cmp img { display: block; width: 100%; height: auto; aspect-ratio: 1780 / 980; object-fit: cover; border-radius: 18px; border: 1px solid var(--line); background: var(--bg-2); }
-
 
 /* cinemas as photo tiles */
 .ct-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
