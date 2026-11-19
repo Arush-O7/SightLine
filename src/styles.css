@@ -905,6 +905,19 @@ span.actions { display: flex; justify-content: flex-end; }
 .hx-title span { display: block; }
 .hx-lede { margin-top: 24px; font-size: 18px; line-height: 1.55; max-width: 44ch; color: rgba(236, 235, 231, 0.84); animation: rise 0.6s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .hx-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+/* seats chosen earlier and not booked yet */
+.resume { position: relative; display: flex; align-items: center; width: min(470px, 100%); margin-top: 22px; border-radius: 16px; border: 1px solid var(--line-strong); background: rgba(20, 20, 21, 0.72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); animation: rise 0.6s 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.resume-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 10px; border-radius: 16px 0 0 16px; }
+.resume-link .poster { flex: none; width: 34px; height: 51px; border-radius: 6px; }
+.resume-text { min-width: 0; display: grid; gap: 1px; }
+.resume-text small { font-size: 12px; color: var(--accent); }
+.resume-text b { font-size: 14px; font-weight: 600; }
+.resume-text b, .resume-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resume-text span { font-size: 12.5px; color: var(--muted); }
+.resume-link > svg { flex: none; margin-left: auto; color: var(--muted); transition: transform 0.2s; }
+.resume-link:hover > svg { color: var(--text); transform: translateX(2px); }
+.resume-clear { flex: none; align-self: stretch; width: 44px; display: grid; place-items: center; border-left: 1px solid var(--line); color: var(--muted); border-radius: 0 16px 16px 0; }
+.resume-clear:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
 .hx .btn-glass, .home-close .btn-glass { background: rgba(20, 20, 21, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-color: var(--line-strong); }
 
 /* sections below the hero */
@@ -948,9 +961,7 @@ span.actions { display: flex; justify-content: flex-end; }
 @media (max-width: 520px) {
   .ct-text b { font-size: 22px; }
 }
-@media (prefers-reduced-motion: reduce) { .hx-title, .hx-lede { animation: none; } }
-
-/* ---------- home: explaining the product ---------- */
+@media (prefers-reduced-motion: reduce) { .hx-title, .hx-lede, .resume { animation: none; } }
 
 /* listing pages title themselves like a cinema sign */
 .section-head h1.display { font-size: clamp(48px, 6vw, 88px); margin-bottom: 10px; }

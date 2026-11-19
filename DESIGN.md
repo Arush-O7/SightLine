@@ -301,6 +301,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - The live 3D hall fills the first screen, playing the lead movie with its real poster on the screen, placed right of centre so it stays clear of the headline. The camera flies in once, then glides slowly from seat to seat (the best seat, an off-centre seat, the back row, near the front).
 - Left: the Marquee Hero headline, capped at about five of its own letter-widths so it wraps to three lines and never covers the poster; one sentence on how it works; then Browse Movies (Primary) and Explore Cinemas (Glass). Nothing else sits over the hall: no panel, card or caption.
 - The headline and sentence rise in once on load (reduced motion: no movement). A scrim darkens the left for the copy and fades into the page at the bottom.
+- The one exception to "nothing else": when the visitor has chosen seats and not booked them, a single glass row sits under the buttons. A small poster, "Continue booking" in Tungsten 12px, the title at weight 600, then the date, time and seats in Muted, one line each with an ellipsis; a hairline-divided × on the right lets the seats go (and releases any hold). It disappears once the show starts or the seats are booked.
 - Under 860px the hall gets its own frame at the top, about half the screen tall, and the headline overlaps its lower edge.
 
 ### Seat Comparison

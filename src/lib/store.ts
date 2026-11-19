@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, setSignedOutHandler, type Booking, type MovieMedia, type SiteConfig, type User } from './api';
+import { delhiTime } from './time';
 import { MAX_SEATS } from '../data/movies';
+
+/** When a show starts, read from its id alone (movie.YYYYMMDD.cinema~screen.HHMM), so it works before the programme loads. */
+function startFromId(id: string): number | null {
+  const m = /\.(\d{4})(\d{2})(\d{2})\.[^.]+\.(\d{2})(\d{2})$/.exec(id);
+  return m ? delhiTime(+m[1], +m[2], +m[3], +m[4], +m[5]).getTime() : null;
+}
 
 export type { Booking, User };
 
@@ -22,6 +29,8 @@ interface State {
   /** null until loaded for the signed-in user */
   bookings: Booking[] | null;
   selections: Record<string, string[]>;
+  /** the show seats were last chosen for, so the home page can offer to carry on */
+  lastShow: string | null;
   /** how many seats the visitor is booking together; showtimes and Pick for Me both use it */
   party: number;
   snapshots: Record<string, Snapshot>;
@@ -49,6 +58,7 @@ export const useStore = create<State>()(
       media: {},
       bookings: null,
       selections: {},
+      lastShow: null,
       party: 2,
       snapshots: {},
 
@@ -90,13 +100,14 @@ export const useStore = create<State>()(
         set((s) => {
           const cur = s.selections[showId] ?? [];
           const next = cur.includes(seatId) ? cur.filter((x) => x !== seatId) : [...cur, seatId];
-          return { selections: { ...s.selections, [showId]: next } };
+          return { selections: { ...s.selections, [showId]: next }, lastShow: next.length ? showId : s.lastShow };
         }),
-      setSeats: (showId, seatIds) => set((s) => ({ selections: { ...s.selections, [showId]: seatIds } })),
+      setSeats: (showId, seatIds) =>
+        set((s) => ({ selections: { ...s.selections, [showId]: seatIds }, lastShow: seatIds.length ? showId : s.lastShow })),
       clearSelection: (showId) =>
         set((s) => {
           const { [showId]: _drop, ...rest } = s.selections;
-          return { selections: rest };
+          return { selections: rest, lastShow: s.lastShow === showId ? null : s.lastShow };
         }),
       setParty: (n) => set((s) => ({ party: Math.min(MAX_SEATS, Math.max(1, Math.round(typeof n === 'function' ? n(s.party) : n) || 1)) })),
       setSnapshot: (showId, snap) =>
@@ -111,8 +122,19 @@ export const useStore = create<State>()(
       name: 'sightline',
       version: 2,
       // only the in-progress seat choice and group size are kept in the browser; accounts and bookings live on the server
-      partialize: (s) => ({ selections: s.selections, party: s.party }),
+      partialize: (s) => ({ selections: s.selections, lastShow: s.lastShow, party: s.party }),
       migrate: (persisted) => ({ selections: (persisted as { selections?: Record<string, string[]> })?.selections ?? {} }),
+      // choices for shows that have started are no use to anyone
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<Pick<State, 'selections' | 'lastShow' | 'party'>>;
+        const now = Date.now();
+        const selections = Object.fromEntries(
+          Object.entries(saved.selections ?? {}).filter(([id, seats]) => seats.length && (startFromId(id) ?? 0) > now),
+        );
+        const lastShow = saved.lastShow && selections[saved.lastShow] ? saved.lastShow : null;
+        const party = Number.isInteger(saved.party) ? Math.min(MAX_SEATS, Math.max(1, saved.party!)) : current.party;
+        return { ...current, selections, lastShow, party };
+      },
     },
   ),
 );

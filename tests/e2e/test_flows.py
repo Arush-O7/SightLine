@@ -236,6 +236,22 @@ def run() -> None:
 
         check("my tickets: the new booking is listed and can be cancelled", my_tickets_cancel)
 
+        def resume_booking():
+            go(page, "/movie/ramayana-rise-of-a-legend")
+            page.locator(".day").nth(1).click()
+            page.locator(".venue a.time").first.click()
+            page.wait_for_selector(".seatmap")
+            page.get_by_role("button", name=re.compile(r"^Select Seat")).click()
+            seat = page.locator(".picked button").first.inner_text().strip()
+            go(page, "/")
+            card = page.locator(".resume")
+            expect(card).to_contain_text("Continue booking")
+            expect(card).to_contain_text(seat)
+            card.get_by_role("button", name=re.compile("Let go of the seats")).click()
+            expect(page.locator(".resume")).to_have_count(0)
+
+        check("home: seats chosen earlier can be picked up again or let go", resume_booking)
+
         def inbox():
             go(page, "/demo/inbox")
             expect(page.locator(".inbox-list")).to_contain_text("cancelled")

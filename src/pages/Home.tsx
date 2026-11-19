@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
 import EventCard from '../components/EventCard';
 import MovieCard from '../components/MovieCard';
+import ResumeBooking from '../components/ResumeBooking';
 import { CINEMAS } from '../data/cinemas';
 import { sized } from '../data/photos';
 import { EVENTS, MOVIES, languages, crowdFor, dayKey, formatDate, formatTime, showsFor, upcomingDays, venueOf, type Show } from '../data/movies';
@@ -133,6 +134,7 @@ export default function Home() {
                 Explore Cinemas
               </Link>
             </div>
+            <ResumeBooking />
           </div>
 
         </div>
