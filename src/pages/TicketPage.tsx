@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowLeft, CalendarPlus, CheckCircle2, Printer } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, CheckCircle2, Navigation, Printer } from 'lucide-react';
 import { Poster } from '../components/Art';
 import NotFound from './NotFound';
-import { formatDate, formatRuntime, formatTime, getMovie, money, parseShow, type Movie, type Show, venueOf } from '../data/movies';
+import { directionsUrl } from '../data/cinemas';
+import { formatDate, formatRuntime, formatTime, getMovie, isLive, money, parseShow, type Movie, type Show, venueOf } from '../data/movies';
 import { getHall, type HallConfig } from '../lib/hall';
 import { api, errorMessage, type Booking } from '../lib/api';
 import { sortSeatIds, useStore } from '../lib/store';
@@ -14,6 +15,9 @@ import { TicketSkeleton } from '../components/Skeleton';
 
 function downloadCalendar(booking: Booking, movie: Movie, show: Show, hall: HallConfig) {
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  // commas, semicolons and backslashes are separators in calendar text
+  const text = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`);
+  const venue = venueOf(show);
   const end = new Date(show.start.getTime() + movie.runtime * 60000);
   const ics = [
     'BEGIN:VCALENDAR',
@@ -24,9 +28,9 @@ function downloadCalendar(booking: Booking, movie: Movie, show: Show, hall: Hall
     `DTSTAMP:${stamp(new Date())}`,
     `DTSTART:${stamp(show.start)}`,
     `DTEND:${stamp(end)}`,
-    `SUMMARY:${movie.title} — SightLine`,
-    `LOCATION:${venueOf(show)?.cinema.name ?? 'Cinema'} (${venueOf(show)?.screen.name ?? hall.format})\\, ${venueOf(show)?.cinema.area ?? ''}\\, Delhi`,
-    `DESCRIPTION:Booking ${booking.id}\\nSeats: ${sortSeatIds(booking.seats).join(', ')}`,
+    `SUMMARY:${text(movie.title)} — SightLine`,
+    `LOCATION:${text(`${venue?.cinema.name ?? 'Cinema'} (${venue?.screen.name ?? hall.format}), ${venue?.cinema.area ?? ''}, Delhi`)}`,
+    `DESCRIPTION:Booking ${booking.id}\\nSeats: ${text(sortSeatIds(booking.seats).join(', '))}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
@@ -176,6 +180,11 @@ export default function TicketPage() {
                 <dt>Cinema</dt>
                 <dd>
                   {venue?.cinema.name}, {venue?.cinema.area} · {venue?.screen.name} ({hall.format})
+                  {venue ? (
+                    <a className="ticket-directions" href={directionsUrl(venue.cinema)} target="_blank" rel="noopener noreferrer">
+                      <Navigation size={14} /> Get directions
+                    </a>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -227,8 +236,8 @@ export default function TicketPage() {
         <button type="button" className="btn btn-secondary" onClick={() => downloadCalendar(booking, movie, show, hall)}>
           <CalendarPlus size={16} /> Add to Calendar
         </button>
-        <Link to="/" className="btn btn-primary">
-          Book Another Film
+        <Link to={isLive(movie) ? '/events' : '/?section=movies'} className="btn btn-primary">
+          {isLive(movie) ? 'Browse Live Shows' : 'Browse Movies'}
         </Link>
       </div>
     </div>

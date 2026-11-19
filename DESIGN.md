@@ -340,6 +340,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 
 ### Ticket
 - An 18px-radius Surface card split by a dashed divider into details and a stub with a white-backed QR code and the booking reference in spaced capitals. Prints as black on white.
+- Under the cinema name, a small underlined "Get directions" link opens Google Maps; it is left out of the printed ticket. The actions below the card are Print Ticket and Add to Calendar (Secondary) and Browse Movies or Browse Live Shows (Primary), matching what was booked.
 - Below it, a Price Breakdown card: hairline-ruled rows of tickets and convenience fee, each followed by an indented Muted 13px line with the GST it includes, then the total at weight 600. Figures are tabular.
 
 ### Loading Placeholders

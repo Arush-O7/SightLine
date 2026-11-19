@@ -22,6 +22,10 @@ export interface Cinema {
   screens: Screen[];
 }
 
+/** Directions in Google Maps, from wherever the visitor is. */
+export const directionsUrl = (cinema: Pick<Cinema, 'name' | 'area'>) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${cinema.name}, ${cinema.area}, Delhi`)}`;
+
 export const CINEMAS: Cinema[] = [
   {
     id: 'pvr-select-citywalk',

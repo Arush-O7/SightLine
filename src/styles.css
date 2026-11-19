@@ -377,6 +377,8 @@ a.time:hover small { color: var(--ink-soft); }
 .ticket-view { margin-top: 16px; border-radius: 18px; }
 .ticket-view figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 44px 20px 16px; display: flex; flex-direction: column; background: linear-gradient(180deg, transparent, rgba(11, 11, 12, 0.9)); }
 .ticket-view b { font-weight: 500; }
+.ticket-directions { display: flex; align-items: center; gap: 6px; width: fit-content; margin-top: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.ticket-directions:hover { color: var(--text); text-decoration-color: currentColor; }
 .ticket-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .ticket-actions .btn-primary { margin-left: auto; }
 .bookings { max-width: 860px; padding-top: 40px; }
@@ -582,7 +584,7 @@ a.time:hover small { color: var(--ink-soft); }
 @media print {
   :root { --print-ink: #000000; --print-rule: #999999; }
   body { background: #fff; color: var(--print-ink); }
-  .nav, .footer, .ticket-actions, .ticket-banner p, .verify-banner, .ticket-head .back-link { display: none !important; }
+  .nav, .footer, .ticket-actions, .ticket-directions, .ticket-banner p, .verify-banner, .ticket-head .back-link { display: none !important; }
   .price-breakdown { background: #fff; border-color: var(--print-rule); break-inside: avoid; }
   .price-breakdown *, .price-breakdown .muted { color: var(--print-ink) !important; }
   .price-breakdown dl, .price-breakdown dl > div { border-color: var(--print-rule); }
@@ -755,6 +757,7 @@ a.time:hover small { color: var(--ink-soft); }
 .cinema-hero-copy { position: absolute; left: clamp(18px, 3vw, 32px); right: 18px; bottom: clamp(18px, 3vw, 28px); }
 .cinema-hero h1 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(48px, 6vw, 92px); line-height: 0.9; letter-spacing: 0.01em; }
 .cinema-hero-copy p { margin-top: 8px; display: flex; align-items: center; gap: 6px; color: var(--text); opacity: 0.86; }
+.cinema-directions { margin-top: 14px; }
 .photo-credit { position: absolute; right: 12px; top: 12px; padding: 3px 9px; border-radius: 999px; background: rgba(11, 11, 12, 0.82); font-size: 12px; color: var(--muted); }
 .photo-credit:hover { color: var(--text); }
 .screen-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-bottom: 32px; }

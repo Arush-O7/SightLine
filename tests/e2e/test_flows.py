@@ -213,6 +213,7 @@ def run() -> None:
             page.wait_for_url(re.compile(r"#/ticket/"), timeout=15000)
             expect(page.get_by_role("heading", name=re.compile(r"You’re Booked"))).to_be_visible()
             expect(page.locator(".price-breakdown")).to_contain_text("GST")
+            expect(page.get_by_role("link", name="Get directions")).to_have_attribute("href", re.compile(r"^https://www\.google\.com/maps/search/"))
             page.screenshot(path=SHOTS / "04-ticket.png", full_page=True)
 
         check("checkout: a declined card shows an error, an approved card books", checkout_declined_then_paid)
@@ -279,6 +280,7 @@ def run() -> None:
             page.locator(".cinema-card").first.click()
             page.wait_for_url(re.compile(r"#/cinema/"))
             expect(page.locator(".screen-card").first).to_be_visible()
+            expect(page.get_by_role("link", name="Get Directions")).to_have_attribute("href", re.compile(r"^https://www\.google\.com/maps/search/"))
             assert page.locator(".venue-movie").count() >= 1
             # the building photo and the auditorium renders actually load
             page.wait_for_function("[...document.querySelectorAll('.cinema-hero img, .screen-card img')].every(i => i.complete && i.naturalWidth > 0)", timeout=15000)

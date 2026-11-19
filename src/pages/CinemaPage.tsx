@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, MapPin, Navigation } from "lucide-react";
 import { Poster } from "../components/Art";
 import PartyPicker from "../components/PartyPicker";
 import ShowTimes from "../components/ShowTimes";
 import NotFound from "./NotFound";
-import { getCinema } from "../data/cinemas";
+import { directionsUrl, getCinema } from "../data/cinemas";
 import {
   KIND_LABEL,
   formatRuntime,
@@ -72,6 +72,14 @@ export default function CinemaPage() {
               <MapPin size={14} aria-hidden="true" /> {cinema.area}, Delhi ·{" "}
               {cinema.chain}
             </p>
+            <a
+              className="btn btn-glass btn-sm cinema-directions"
+              href={directionsUrl(cinema)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Navigation size={14} /> Get Directions
+            </a>
           </div>
           <Link to="/credits" className="photo-credit">
             {cinema.photo.note?.startsWith("Representative")
