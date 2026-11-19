@@ -2,11 +2,14 @@ import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Globe, MapPin } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
+import PartyPicker from '../components/PartyPicker';
 import ShowTimes from '../components/ShowTimes';
 import NotFound from './NotFound';
 import { getCinema } from '../data/cinemas';
 import { KIND_LABEL, formatRuntime, getMovie, isLive, showsFor, upcomingDays, type ShowGroup } from '../data/movies';
 import { getLayout } from '../lib/hall';
+import { useBookedSeats } from '../lib/showView';
+import { useStore } from '../lib/store';
 import { useTitle } from '../lib/useTitle';
 
 const FORMATS = ['All', 'Large screen', 'Recliner', 'Standard'];
@@ -38,16 +41,19 @@ export default function MoviePage() {
       { replace: true },
     );
   useTitle(movie?.title);
+  const party = useStore((s) => s.party);
+
+  // the day's screenings in the chosen format, and what is already booked for the ones still to start
+  const groups = movie ? showsFor(movie, dayKey).filter((g) => format === 'All' || getLayout(g.hallId).config.format === format) : [];
+  const now = Date.now();
+  const booked = useBookedSeats(groups.flatMap((g) => g.shows.filter((s) => s.start.getTime() > now).map((s) => s.id)));
 
   if (!movie) return <NotFound title="We couldn’t find that movie or show" />;
   const live = isLive(movie);
 
-  // group the day's screenings by cinema, keeping each auditorium's times together
+  // group the screenings by cinema, keeping each auditorium's times together
   const byCinema = new Map<string, ShowGroup[]>();
-  for (const g of showsFor(movie, dayKey)) {
-    if (format !== 'All' && getLayout(g.hallId).config.format !== format) continue;
-    byCinema.set(g.cinemaId, [...(byCinema.get(g.cinemaId) ?? []), g]);
-  }
+  for (const g of groups) byCinema.set(g.cinemaId, [...(byCinema.get(g.cinemaId) ?? []), g]);
 
   return (
     <div className="movie-page">
@@ -115,13 +121,19 @@ export default function MoviePage() {
           ))}
         </div>
 
-        <div className="chips format-filter" role="group" aria-label="Filter by auditorium">
-          {FORMATS.map((f) => (
-            <button key={f} type="button" aria-pressed={format === f} className={`chip ${format === f ? 'on' : ''}`} onClick={() => setParam('format', f === 'All' ? null : f)}>
-              {f}
-            </button>
-          ))}
+        <div className="showtimes-tools">
+          <div className="chips" role="group" aria-label="Filter by auditorium">
+            {FORMATS.map((f) => (
+              <button key={f} type="button" aria-pressed={format === f} className={`chip ${format === f ? 'on' : ''}`} onClick={() => setParam('format', f === 'All' ? null : f)}>
+                {f}
+              </button>
+            ))}
+          </div>
+          <PartyPicker />
         </div>
+        <p className="muted small showtimes-note">
+          The number beside each time is the best view left for {party === 1 ? 'one seat' : `${party} seats together`}, out of 100.
+        </p>
 
         {byCinema.size ? (
           <div className="venue-list">
@@ -139,7 +151,7 @@ export default function MoviePage() {
                   </header>
                   <div className="venue-screens">
                     {groups.map((g) => (
-                      <ShowTimes key={g.screenId} cinema={cinema} screenId={g.screenId} shows={g.shows} />
+                      <ShowTimes key={g.screenId} cinema={cinema} screenId={g.screenId} shows={g.shows} party={party} booked={booked} />
                     ))}
                   </div>
                 </article>

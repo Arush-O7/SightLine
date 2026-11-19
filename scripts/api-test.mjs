@@ -168,6 +168,14 @@ r = await b('GET', `/shows/${SHOW}/seats`);
 check("B sees A's held seats as taken", r.data.taken.includes(s1) && r.data.taken.includes(s2));
 r = await a('GET', `/shows/${SHOW}/seats`);
 check('A does not see own hold as taken, and gets hold info', !r.data.taken.includes(s1) && r.data.hold?.seats.length === 2);
+const NO_SHOW = 'nope.20260101.pvr-plaza~a1.1000';
+r = await b('GET', `/availability?shows=${SHOW},${NO_SHOW}`);
+check("showtime availability lists A's held seats for others", r.status === 200 && r.data.seats[SHOW]?.includes(s1) && r.data.seats[SHOW]?.includes(s2), JSON.stringify(r.data));
+check('showtime availability skips shows that do not exist', !(NO_SHOW in r.data.seats));
+r = await a('GET', `/availability?shows=${SHOW}`);
+check('showtime availability leaves out your own hold', r.status === 200 && !r.data.seats[SHOW].includes(s1), JSON.stringify(r.data));
+r = await anon('GET', `/availability?shows=${Array.from({ length: 61 }, (_, i) => `${SHOW}${i}`).join(',')}`);
+check('showtime availability takes at most 60 shows', r.status === 400 && r.data.error.code === 'too_many_shows');
 r = await b('POST', `/shows/${SHOW}/hold`, { seats: [s2, s3] });
 check('B cannot hold a seat A holds', r.status === 409 && r.data.error.seats?.includes(s2), JSON.stringify(r.data));
 

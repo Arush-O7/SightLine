@@ -156,8 +156,11 @@ button.chip:hover { color: var(--text); border-color: var(--line-strong); }
 .day.on { background: var(--text); border-color: var(--text); color: var(--ink-soft); }
 .day.on b { color: #0b0b0c; }
 .time-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.time { min-width: 108px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--line-strong); display: flex; flex-direction: column; transition: color 0.2s, background-color 0.2s, border-color 0.2s; }
+.time { min-width: 112px; padding: 10px 12px 10px 14px; border-radius: 14px; border: 1px solid var(--line-strong); display: flex; flex-direction: column; gap: 2px; transition: color 0.2s, background-color 0.2s, border-color 0.2s; }
 .time b { font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.time-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; }
+/* the best view left, lit like a small display so it reads on the light hover state too */
+.time-score { min-width: 28px; padding: 2px 6px; border-radius: 999px; background: #0b0b0c; color: var(--faint); font-size: 12px; font-weight: 600; line-height: 1.3; text-align: center; font-variant-numeric: tabular-nums; }
 .time small { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
 .time.ok .dot { color: var(--available); }
 .time.warm .dot { color: var(--accent); }
@@ -553,7 +556,7 @@ a.time:hover small { color: var(--ink-soft); }
   .container { width: min(1180px, 100% - 32px); }
   .nav-links a:not(.nav-tickets) { display: none; }
   .nav-inner { width: min(1180px, 100% - 32px); }
-    .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 14px; }
+  .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 14px; }
   .movie-head { grid-template-columns: 1fr; gap: 22px; }
   .movie-head-poster { width: 150px; }
   .methods, .ticket, .footer-inner { grid-template-columns: 1fr; }
@@ -561,6 +564,12 @@ a.time:hover small { color: var(--ink-soft); }
   .ticket-grid { grid-template-columns: repeat(2, auto); }
   .ticket-stub { border-left: 0; border-top: 1px dashed var(--line-strong); }
   .ticket-actions .btn { flex: 1; }
+  /* three showtimes to a row, so a day's times scan at a glance */
+  .time-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .time { min-width: 0; padding: 9px 10px; }
+  .time b { font-size: 14px; }
+  .time-top { column-gap: 4px; }
+  .time-score { min-width: 26px; padding: 2px 5px; }
   .booking-item { grid-template-columns: 60px minmax(0, 1fr); }
   .booking-item-actions { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
   .stats { grid-template-columns: repeat(2, 1fr); }
@@ -643,7 +652,7 @@ a.time:hover small { color: var(--ink-soft); }
 
 /* phones and tablets: every control is a full thumb-sized target */
 @media (pointer: coarse) {
-  .chip { min-height: 44px; padding-inline: 16px; }
+  .chip { min-height: 44px; min-width: 44px; padding-inline: 12px; }
   .nav-links a { min-height: 44px; display: inline-flex; align-items: center; }
   .footer-links div { gap: 0; }
   .footer-links a { padding-block: 12px; }
@@ -710,7 +719,12 @@ a.time:hover small { color: var(--ink-soft); }
 .cinema-card:hover .cinema-card-link { text-decoration: underline; text-underline-offset: 3px; }
 
 /* showtimes by cinema */
-.format-filter { margin: -6px 0 22px; }
+.showtimes-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin: -6px 0 10px; }
+.showtimes-note { margin: 0 0 18px; }
+.showtimes-tools .showtimes-note { margin: 0; }
+.cinema-page .showtimes-tools { margin: -8px 0 18px; }
+.party { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.party .stepper button { height: 34px; }
 .venue-list { display: grid; gap: 12px; }
 .venue { padding: 20px 22px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
 .venue-head { display: grid; gap: 2px; margin-bottom: 14px; }
@@ -726,7 +740,11 @@ a.time:hover small { color: var(--ink-soft); }
 @media (max-width: 700px) {
   .screen-row { grid-template-columns: 1fr; }
   .venue { padding: 16px; }
-  .venue-movie { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; }
+  /* a movie at a cinema: small poster beside the title, its times full width below */
+  .venue-movie { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; }
+  .venue-movie > div { display: contents; }
+  .venue-movie .venue-head { align-self: center; margin-bottom: 0; }
+  .venue-movie .venue-screens { grid-column: 1 / -1; }
 }
 
 /* cinema page */

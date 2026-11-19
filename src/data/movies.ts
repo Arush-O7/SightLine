@@ -654,8 +654,8 @@ export const BOOKING_FEE = 30;
 export const MAX_SEATS = 8;
 
 /**
- * A believable, repeatable crowd for a showtime: evening shows are busier,
- * better seats go first, and people arrive in groups that sit together.
+ * A believable, repeatable crowd for a showtime: evenings, weekends and the big
+ * releases are busier, the best seats go first, and people arrive in groups that sit together.
  */
 const crowdCache = new Map<string, Set<string>>();
 
@@ -664,15 +664,16 @@ export function crowdFor(show: Show, layout: HallLayout): Set<string> {
   const cached = crowdCache.get(show.id);
   if (cached) return new Set(cached);
   const rng = mulberry32(hashString(show.id));
-  const hour = delhiClock(show.start).hour;
+  const { hour, weekday } = delhiClock(show.start);
   const base = hour < 12 ? 0.16 : hour < 16 ? 0.26 : hour < 19 ? 0.4 : hour < 22 ? 0.56 : 0.34;
-  const fill = base + (rng() - 0.5) * 0.16;
+  const weekend = weekday === 0 || weekday === 6 || (weekday === 5 && hour >= 17);
+  const fill = base + (rng() - 0.5) * 0.16 + (weekend ? (hour < 12 ? 0.04 : 0.14) : 0) + (getMovie(show.movieId)?.featured ? 0.06 : 0);
   const taken = new Set<string>();
   for (const row of layout.grid) {
     let c = 0;
     while (c < row.length) {
       const seat = row[c];
-      const weight = 0.3 + 1.0 * Math.pow(layout.metrics[seat.index].score / 100, 1.6);
+      const weight = 0.2 + 1.5 * Math.pow(layout.metrics[seat.index].score / 100, 3);
       if (rng() < fill * weight * 0.62) {
         const group = 1 + Math.floor(rng() * rng() * 4) + (rng() < 0.55 ? 1 : 0);
         let placed = 0;
@@ -690,10 +691,11 @@ export function crowdFor(show: Show, layout: HallLayout): Set<string> {
   return new Set(taken);
 }
 
-export function fillLevel(show: Show, layout: HallLayout, extra = 0): { ratio: number; label: string; tone: 'ok' | 'warm' | 'hot' } {
-  const ratio = (crowdFor(show, layout).size + extra) / layout.seats.length;
-  if (ratio > 0.5) return { ratio, label: 'Almost full', tone: 'hot' };
-  if (ratio > 0.3) return { ratio, label: 'Filling fast', tone: 'warm' };
+/** How full a show is, from every seat taken in it. */
+export function fillLevel(layout: HallLayout, taken: Set<string>): { ratio: number; label: string; tone: 'ok' | 'warm' | 'hot' } {
+  const ratio = taken.size / layout.seats.length;
+  if (ratio > 0.6) return { ratio, label: 'Almost full', tone: 'hot' };
+  if (ratio > 0.4) return { ratio, label: 'Filling fast', tone: 'warm' };
   return { ratio, label: 'Available', tone: 'ok' };
 }
 

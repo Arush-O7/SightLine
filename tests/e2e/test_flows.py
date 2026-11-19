@@ -131,6 +131,23 @@ def run() -> None:
 
         check("film page: pick a day, a cinema and a showtime", film_page)
 
+        def showtime_scores():
+            go(page, "/movie/ramayana-rise-of-a-legend")
+            page.locator(".day").nth(1).click()
+            expect(page.locator(".venue a.time .time-score").first).to_have_text(re.compile(r"^(\d{1,3}|–)$"))
+            note = page.locator(".showtimes-note")
+            expect(note).to_contain_text("2 seats together")
+            page.get_by_role("button", name="More seats").click()
+            expect(note).to_contain_text("3 seats together")
+            page.get_by_role("button", name="Fewer seats").click()
+            expect(note).to_contain_text("2 seats together")
+            # once live availability is in, a time opens the hall at the best seats left
+            expect(page.locator(".venue a.time[href*='seat=']").first).to_be_attached(timeout=8000)
+            page.locator(".venue a.time").first.click()
+            page.wait_for_url(re.compile(r"#/book/.+seat="))
+
+        check("film page: each time shows the best view left for the group", showtime_scores)
+
         def booking_header():
             expect(page.locator(".bk-title span")).to_contain_text(re.compile(r"Audi|Main Hall"))
 

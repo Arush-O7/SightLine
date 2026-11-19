@@ -331,9 +331,11 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - Tables use Faint 12px headers, hairline rows, tabular figures right-aligned, and a Muted sub-line under each primary value. Destructive actions take two steps: a Secondary "Cancel", then a Danger confirmation beside a Text "Keep".
 
 ### Showtimes
-- On a movie or live show page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures and a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
-- Above the cards, the day tiles and a pill filter for auditorium type (All, Large screen, Recliner, Standard). The chosen day and filter live in the URL.
-- On a cinema page the same rows sit under each movie's poster and title instead.
+- On a movie or live show page, one Surface card per cinema: the name (a link to the cinema) and its area, then one row per auditorium. Each row has the format as a Status Tag and "Audi 1 · from ₹250" on the left, and its times as outlined tiles on the right. Each tile shows the time in tabular figures with the best view score still free for the group beside it, then a coloured dot with "Available", "Filling fast" or "Almost full"; a show that has started is dimmed and not a link.
+- The score sits in a small Ink pill, its digits coloured on the heatmap's red to amber to green ramp, so it stays legible when the tile inverts to Paper on hover. "–" means no seats are left together for the group. A tile links to the booking page opened at the middle of those best seats.
+- Above the cards, the day tiles, then one row with the pill filter for auditorium type (All, Large screen, Recliner, Standard) on the left and the Seats stepper on the right, and one Muted 13px sentence saying what the number means for the current group size. The day and filter live in the URL; the group size is the visitor's own and is remembered in the browser, and Pick for Me on the booking page uses the same number.
+- Under 700px the times sit three to a row in equal columns.
+- On a cinema page the same rows sit under each movie's poster and title instead; under 700px the poster shrinks beside the title and the times run the full width of the card. The cinema hero carries a Glass "Get Directions" button that opens Google Maps.
 
 ### Ticket
 - An 18px-radius Surface card split by a dashed divider into details and a stub with a white-backed QR code and the booking reference in spaced capitals. Prints as black on white.

@@ -22,6 +22,10 @@ const TOPICS: Topic[] = [
         a: 'A number out of 100 for each seat. It combines how much of your vision the screen fills, how far you have to tilt your head, and how far off-centre you are. Around 50° of screen, a level head and a central seat score highest.',
       },
       {
+        q: 'What is the number beside each showtime?',
+        a: 'The best view score still free at that show for the number of seats you set with Seats above the times, counting seats other people have booked or are holding. A dash means that many seats are no longer free together. Opening a time starts you at those seats, and Pick for Me picks them.',
+      },
+      {
         q: 'What are the most booked seats?',
         a: 'Seats with a dot on the map are the ones people booked most often in this kind of auditorium over the last four weeks, and the ones still free for your show are listed under the map. In this demo those bookings come from the same simulated audience as the rest of the hall.',
       },

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { Poster } from "../components/Art";
+import PartyPicker from "../components/PartyPicker";
 import ShowTimes from "../components/ShowTimes";
 import NotFound from "./NotFound";
 import { getCinema } from "../data/cinemas";
@@ -14,6 +15,8 @@ import {
 } from "../data/movies";
 import { sized } from "../data/photos";
 import { getLayout } from "../lib/hall";
+import { useBookedSeats } from "../lib/showView";
+import { useStore } from "../lib/store";
 import { useTitle } from "../lib/useTitle";
 
 export default function CinemaPage() {
@@ -35,9 +38,18 @@ export default function CinemaPage() {
     ? params.get("day")!
     : firstOpenDay;
   useTitle(cinema?.name);
+  const party = useStore((s) => s.party);
+  const listing = cinema ? showsAt(cinema, dayKey) : [];
+  const now = Date.now();
+  const booked = useBookedSeats(
+    listing.flatMap((m) =>
+      m.groups.flatMap((g) =>
+        g.shows.filter((s) => s.start.getTime() > now).map((s) => s.id),
+      ),
+    ),
+  );
 
   if (!cinema) return <NotFound title="We couldn’t find that cinema" />;
-  const listing = showsAt(cinema, dayKey);
 
   return (
     <div className="container section cinema-page">
@@ -129,6 +141,14 @@ export default function CinemaPage() {
         ))}
       </div>
 
+      <div className="showtimes-tools">
+        <p className="muted small showtimes-note">
+          The number beside each time is the best view left for{" "}
+          {party === 1 ? "one seat" : `${party} seats together`}, out of 100.
+        </p>
+        <PartyPicker />
+      </div>
+
       <div className="venue-list">
         {listing.map(({ movie, groups }) => (
           <article key={movie.id} className="venue venue-movie">
@@ -157,6 +177,8 @@ export default function CinemaPage() {
                     cinema={cinema}
                     screenId={g.screen.id}
                     shows={g.shows}
+                    party={party}
+                    booked={booked}
                   />
                 ))}
               </div>

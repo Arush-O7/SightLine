@@ -111,7 +111,8 @@ function Booking({ show }: { show: Show }) {
   const [heatmap, setHeatmap] = useState(false);
   const [lights, setLights] = useState<LightMode>('movie');
   const [audience, setAudience] = useState(true);
-  const [party, setParty] = useState(2);
+  const party = useStore((s) => s.party);
+  const setParty = useStore((s) => s.setParty);
   const [toast, setToast] = useState<string | null>(null);
   const hallRef = useRef<Hall3DHandle>(null);
   const toastTimer = useRef<number>(0);
@@ -675,11 +676,11 @@ function Booking({ show }: { show: Show }) {
                 <span>We’ll pick the best free seats together.</span>
               </div>
               <div className="stepper" role="group" aria-label="Group size">
-                <button type="button" onClick={() => setParty((p) => Math.max(1, p - 1))} disabled={party <= 1} aria-label="Fewer seats">
+                <button type="button" onClick={() => setParty((p) => p - 1)} disabled={party <= 1} aria-label="Fewer seats">
                   <Minus size={14} />
                 </button>
                 <output>{party}</output>
-                <button type="button" onClick={() => setParty((p) => Math.min(MAX_SEATS, p + 1))} disabled={party >= MAX_SEATS} aria-label="More seats">
+                <button type="button" onClick={() => setParty((p) => p + 1)} disabled={party >= MAX_SEATS} aria-label="More seats">
                   <Plus size={14} />
                 </button>
               </div>

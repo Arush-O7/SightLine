@@ -206,6 +206,9 @@ export const api = {
   googleSignInUrl: (next: string) => `/api/auth/google/start?next=${enc(next)}`,
 
   seats: (showId: string) => request<{ taken: string[]; hold: Hold | null }>('GET', `/shows/${enc(showId)}/seats`),
+  /** seats booked or held on the site, by show; the simulated audience is not included */
+  availability: (showIds: string[]) =>
+    request<{ seats: Record<string, string[]> }>('GET', `/availability?shows=${showIds.map(enc).join(',')}`).then((r) => r.seats),
   hold: (showId: string, seats: string[]) => request<{ hold: Hold }>('POST', `/shows/${enc(showId)}/hold`, { seats }).then((r) => r.hold),
   releaseHold: (showId: string) => request<{ ok: true }>('DELETE', `/shows/${enc(showId)}/hold`),
 

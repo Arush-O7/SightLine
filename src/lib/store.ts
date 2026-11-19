@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, setSignedOutHandler, type Booking, type MovieMedia, type SiteConfig, type User } from './api';
+import { MAX_SEATS } from '../data/movies';
 
 export type { Booking, User };
 
@@ -21,6 +22,8 @@ interface State {
   /** null until loaded for the signed-in user */
   bookings: Booking[] | null;
   selections: Record<string, string[]>;
+  /** how many seats the visitor is booking together; showtimes and Pick for Me both use it */
+  party: number;
   snapshots: Record<string, Snapshot>;
 
   initAuth: () => Promise<void>;
@@ -33,6 +36,7 @@ interface State {
   toggleSeat: (showId: string, seatId: string) => void;
   setSeats: (showId: string, seatIds: string[]) => void;
   clearSelection: (showId: string) => void;
+  setParty: (n: number | ((current: number) => number)) => void;
   setSnapshot: (showId: string, snap: Snapshot | null) => void;
 }
 
@@ -45,6 +49,7 @@ export const useStore = create<State>()(
       media: {},
       bookings: null,
       selections: {},
+      party: 2,
       snapshots: {},
 
       initAuth: async () => {
@@ -93,6 +98,7 @@ export const useStore = create<State>()(
           const { [showId]: _drop, ...rest } = s.selections;
           return { selections: rest };
         }),
+      setParty: (n) => set((s) => ({ party: Math.min(MAX_SEATS, Math.max(1, Math.round(typeof n === 'function' ? n(s.party) : n) || 1)) })),
       setSnapshot: (showId, snap) =>
         set((s) => {
           const next = { ...s.snapshots };
@@ -104,8 +110,8 @@ export const useStore = create<State>()(
     {
       name: 'sightline',
       version: 2,
-      // only the in-progress seat choice is kept in the browser; accounts and bookings live on the server
-      partialize: (s) => ({ selections: s.selections }),
+      // only the in-progress seat choice and group size are kept in the browser; accounts and bookings live on the server
+      partialize: (s) => ({ selections: s.selections, party: s.party }),
       migrate: (persisted) => ({ selections: (persisted as { selections?: Record<string, string[]> })?.selections ?? {} }),
     },
   ),

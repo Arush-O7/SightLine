@@ -804,6 +804,30 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     return send(res, 200, { shows });
   }
 
+  // seats booked or held on the site for several shows at once (/availability?shows=id,id), so a list of
+  // showtimes can say what is still free; the simulated audience is left out, as the caller computes the same one
+  if (method === 'GET' && path[0] === 'availability') {
+    const ids = [...new Set((query.get('shows') ?? '').split(',').filter(Boolean))];
+    if (ids.length > 60) throw bad('too_many_shows', 'Ask for up to 60 shows at a time.');
+    const shows = ids.filter((id) => parseShow(id));
+    const seats: Record<string, string[]> = Object.fromEntries(shows.map((id) => [id, []]));
+    if (shows.length) {
+      const marks = shows.map(() => '?').join(', ');
+      const user = await currentUser(db, req);
+      const booked = await db.all<{ show_id: string; seat_id: string }>(`SELECT show_id, seat_id FROM booking_seats WHERE show_id IN (${marks})`, ...shows);
+      const held = await db.all<{ show_id: string; seat_id: string; user_id: number }>(
+        `SELECT show_id, seat_id, user_id FROM holds WHERE show_id IN (${marks}) AND expires_at > ?`,
+        ...shows,
+        Date.now(),
+      );
+      for (const r of booked) seats[r.show_id].push(r.seat_id);
+      // your own hold doesn't count against you, as on the booking page
+      for (const h of held) if (Number(h.user_id) !== user?.id) seats[h.show_id].push(h.seat_id);
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    return send(res, 200, { seats });
+  }
+
   // the admin's changes to the programme, applied by the site on top of the generated showtimes
   if (method === 'GET' && path[0] === 'schedule') {
     res.setHeader('Cache-Control', 'no-store');
