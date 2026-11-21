@@ -34,3 +34,9 @@ export function delhiClock(at: Date | number = Date.now()): Clock {
 export function delhiTime(year: number, month: number, day: number, hour = 0, minute = 0): Date {
   return new Date(Date.UTC(year, month - 1, day, hour, minute) - OFFSET_MS);
 }
+
+/** Seconds left on a seat hold as minutes and seconds: 402 reads "06:42". */
+export function formatCountdown(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}

@@ -21,6 +21,15 @@ export function showView(show: Show, party: number, booked: readonly string[] = 
   return { seats, score, fill: fillLevel(layout, taken) };
 }
 
+/** The seat in the middle of the best seats left, where the hall opens for that show. */
+export const middleSeat = (view: ShowView): Seat | undefined => view.seats[Math.floor((view.seats.length - 1) / 2)];
+
+/** The best view left as a screen reader hears it: "best view left for 2 seats together, 84 out of 100". */
+export function viewLabel(view: ShowView, party: number): string {
+  if (view.score === null) return party === 1 ? 'no seats left' : `no ${party} seats together left`;
+  return `best view left for ${party === 1 ? 'one seat' : `${party} seats together`}, ${view.score} out of 100`;
+}
+
 const CHUNK = 50;
 
 /**

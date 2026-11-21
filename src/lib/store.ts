@@ -148,3 +148,10 @@ setSignedOutHandler(() => {
 export function sortSeatIds(ids: string[]): string[] {
   return [...ids].sort((a, b) => a[0].localeCompare(b[0]) || Number(a.slice(1)) - Number(b.slice(1)));
 }
+
+/** whether two lists name the same seats, in any order */
+export function sameSeats(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const seats = new Set(a);
+  return b.every((id) => seats.has(id));
+}

@@ -6,7 +6,8 @@ import NotFound from './NotFound';
 import { BOOKING_FEE, formatDate, formatTime, getMovie, money, parseShow, venueOf } from '../data/movies';
 import { getLayout, type Seat } from '../lib/hall';
 import { api, ApiFailure, errorMessage, type Hold, type PaymentInput } from '../lib/api';
-import { sortSeatIds, useStore } from '../lib/store';
+import { sameSeats, sortSeatIds, useStore } from '../lib/store';
+import { formatCountdown } from '../lib/time';
 import { useTitle } from '../lib/useTitle';
 
 type Method = PaymentInput['method'];
@@ -57,12 +58,15 @@ export default function CheckoutPage() {
   // one key per visit to this page: a double click or a retry can never create two bookings
   const idemKey = useRef(crypto.randomUUID());
 
-  // make sure the seats are held for this account (covers a refresh or arriving by link)
+  // make sure the seats are held for this account (covers a refresh or arriving by link). A hold that
+  // already covers these seats is kept as it is, so coming back to pay never winds the clock back to 7 minutes.
   useEffect(() => {
     if (!show || !selectedIds?.length) return;
     let cancelled = false;
     api
-      .hold(show.id, selectedIds)
+      .seats(show.id)
+      .then(({ hold }) => hold, () => null)
+      .then((current) => (current && sameSeats(current.seats, selectedIds) ? current : api.hold(show.id, selectedIds)))
       .then((h) => !cancelled && setHold(h))
       .catch((err) => !cancelled && setLost(errorMessage(err)));
     return () => {
@@ -177,8 +181,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const mm = left === null ? '--' : String(Math.floor(left / 60)).padStart(2, '0');
-  const ss = left === null ? '--' : String(left % 60).padStart(2, '0');
+  const clock = left === null ? '--:--' : formatCountdown(left);
   const cta = busy
     ? method === 'counter'
       ? 'Confirming…'
@@ -205,7 +208,7 @@ export default function CheckoutPage() {
           </li>
         </ol>
         <span className={`hold ${left !== null && left < 60 ? 'low' : ''}`} role="timer" aria-live="off">
-          <Timer size={15} /> Seats held for {mm}:{ss}
+          <Timer size={15} /> Seats held for {clock}
         </span>
       </div>
 

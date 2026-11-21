@@ -159,6 +159,15 @@ for (const row of rows) for (let n = 1; n <= 24 && free.length < 4; n++) if (!ta
 const [s1, s2, s3] = free;
 const takenSeat = [...taken][0];
 
+/** The first free seats of a standard-hall show in the given rows. The simulated audience changes with the date, so no seat can be fixed. */
+async function freeSeatsAt(showId, count, inRows) {
+  const { data } = await anon('GET', `/shows/${showId}/seats`);
+  const takenNow = new Set(data.taken);
+  const seats = [];
+  for (const row of inRows) for (let n = 1; n <= 18 && seats.length < count; n++) if (!takenNow.has(row + n)) seats.push(row + n);
+  return seats;
+}
+
 r = await a('POST', `/shows/${SHOW}/hold`, { seats: [takenSeat] });
 check('holding an already-taken seat -> 409', r.status === 409 && r.data.error.code === 'seats_taken');
 
@@ -433,8 +442,9 @@ check('admin adds a live show in the free slot', r.status === 201, JSON.stringif
 const added = r.data.showId;
 r = await anon('GET', `/movies/delhi-comedy-night/shows?date=${key}`);
 check('the added show is on sale', r.data.shows.some((x) => x.id === added));
-r = await cust('POST', `/shows/${added}/hold`, { seats: ['K8', 'K9'] });
-r = await cust('POST', '/bookings', { showId: added, seats: ['K8', 'K9'], payment: { method: 'upi', upiId: 'chitra@bank' }, idempotencyKey: 'chitra-added-show' });
+const pair = await freeSeatsAt(added, 2, 'JKL');
+r = await cust('POST', `/shows/${added}/hold`, { seats: pair });
+r = await cust('POST', '/bookings', { showId: added, seats: pair, payment: { method: 'upi', upiId: 'chitra@bank' }, idempotencyKey: 'chitra-added-show' });
 check('a customer books the added show', r.status === 201, JSON.stringify(r.data));
 r = await staff('POST', '/admin/shows/cancel', { showId: added });
 check('cancelling a show cancels its bookings', r.status === 200 && r.data.cancelledBookings === 1, JSON.stringify(r.data));
@@ -487,7 +497,8 @@ r = await staff('PUT', '/admin/prices', { prices: [{ hallId: 'h1', zoneId: std.z
 check('admin changes a price', r.status === 200);
 r = await anon('GET', '/schedule');
 check('the site feed carries the new price', r.data.prices.some((p) => p.hallId === 'h1' && p.price === 210));
-const frontSeat = 'A5';
+// a seat in the front zone, whose price was just changed
+const [frontSeat] = await freeSeatsAt(lateShow, 1, 'ABC');
 r = await cust('POST', `/shows/${lateShow}/hold`, { seats: [frontSeat] });
 r = await cust('POST', '/bookings', { showId: lateShow, seats: [frontSeat], payment: { method: 'counter' }, idempotencyKey: 'late-laughs-1' });
 check('new bookings are charged the new price', r.status === 201 && r.data.booking.subtotal === 210, JSON.stringify(r.data));

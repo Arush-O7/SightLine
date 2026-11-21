@@ -377,8 +377,9 @@ a.time:hover small { color: var(--ink-soft); }
 .ticket-view { margin-top: 16px; border-radius: 18px; }
 .ticket-view figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 44px 20px 16px; display: flex; flex-direction: column; background: linear-gradient(180deg, transparent, rgba(11, 11, 12, 0.9)); }
 .ticket-view b { font-weight: 500; }
-.ticket-directions { display: flex; align-items: center; gap: 6px; width: fit-content; margin-top: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.ticket-directions:hover { color: var(--text); text-decoration-color: currentColor; }
+.ticket-directions, .venue-directions { display: flex; align-items: center; gap: 6px; width: fit-content; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.ticket-directions:hover, .venue-directions:hover { color: var(--text); text-decoration-color: currentColor; }
+.ticket-directions { margin-top: 6px; }
 .ticket-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .ticket-actions .btn-primary { margin-left: auto; }
 .bookings { max-width: 860px; padding-top: 40px; }
@@ -577,6 +578,11 @@ a.time:hover small { color: var(--ink-soft); }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .pip { width: 160px; }
 }
+/* the narrowest phones: a time and a score of 100 still share one line */
+@media (max-width: 400px) {
+  .time { padding-inline: 8px; }
+  .time-score { padding-inline: 4px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   html { scroll-behavior: auto; }
@@ -729,6 +735,10 @@ a.time:hover small { color: var(--ink-soft); }
 .venue-head h3 { font-size: 18px; }
 .venue-head h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .venue-head p { display: flex; align-items: center; gap: 5px; }
+.venue-head-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.venue-head-row > div { display: grid; gap: 2px; min-width: 0; }
+/* a taller box than the text, so it is easy to tap without pushing the line down */
+.venue-directions { flex: none; padding: 6px 0; margin: -6px 0; }
 .venue-screens { display: grid; gap: 14px; }
 .screen-row { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 10px 20px; align-items: center; }
 .screen-row + .screen-row { padding-top: 14px; border-top: 1px solid var(--line); }
@@ -743,6 +753,10 @@ a.time:hover small { color: var(--ink-soft); }
   .venue-movie > div { display: contents; }
   .venue-movie .venue-head { align-self: center; margin-bottom: 0; }
   .venue-movie .venue-screens { grid-column: 1 / -1; }
+  /* the cinema's name gets the whole line, so directions always sit at the end of the area line */
+  .venue-head-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; }
+  .venue-head-row > div { display: contents; }
+  .venue-head-row h3 { grid-column: 1 / -1; }
 }
 
 /* cinema page */
@@ -909,10 +923,11 @@ span.actions { display: flex; justify-content: flex-end; }
 .resume-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 10px; border-radius: 16px 0 0 16px; }
 .resume-link .poster { flex: none; width: 34px; height: 51px; border-radius: 6px; }
 .resume-text { min-width: 0; display: grid; gap: 1px; }
-.resume-text small { font-size: 12px; color: var(--accent); }
+.resume-text small { font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.resume-text small .low { color: var(--danger); }
 .resume-text b { font-size: 14px; font-weight: 600; }
-.resume-text b, .resume-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.resume-text span { font-size: 12.5px; color: var(--muted); }
+.resume-text b, .resume-text > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resume-text > span { font-size: 12.5px; color: var(--muted); }
 .resume-link > svg { flex: none; margin-left: auto; color: var(--muted); transition: transform 0.2s; }
 .resume-link:hover > svg { color: var(--text); transform: translateX(2px); }
 .resume-clear { flex: none; align-self: stretch; width: 44px; display: grid; place-items: center; border-left: 1px solid var(--line); color: var(--muted); border-radius: 0 16px 16px 0; }

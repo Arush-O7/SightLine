@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { formatTime, type Show } from '../data/movies';
 import { getLayout, scoreColor } from '../lib/hall';
 import { warmBooking } from '../lib/preload';
-import { showView } from '../lib/showView';
+import { middleSeat, showView, viewLabel } from '../lib/showView';
 import type { Cinema } from '../data/cinemas';
 
 interface Props {
@@ -21,7 +21,6 @@ export default function ShowTimes({ cinema, screenId, shows, party, booked }: Pr
   const layout = getLayout(screen.hallId);
   const from = Math.min(...layout.config.zones.map((z) => z.price));
   const now = Date.now();
-  const group = party === 1 ? 'seat' : `${party} seats together`;
   return (
     <div className="screen-row">
       <div className="screen-row-label">
@@ -43,8 +42,7 @@ export default function ShowTimes({ cinema, screenId, shows, party, booked }: Pr
           }
           const view = showView(show, party, booked?.[show.id]);
           // open the hall at the middle of the best seats left, once live availability is known
-          const middle = booked ? view.seats[Math.floor((view.seats.length - 1) / 2)] : undefined;
-          const left = view.score === null ? `no ${group} left` : `best ${group} left score ${view.score} out of 100`;
+          const middle = booked ? middleSeat(view) : undefined;
           return (
             <Link
               key={show.id}
@@ -52,7 +50,7 @@ export default function ShowTimes({ cinema, screenId, shows, party, booked }: Pr
               className={`time ${view.fill.tone}`}
               onMouseEnter={warmBooking}
               onFocus={warmBooking}
-              aria-label={`${time}, ${cinema.name}, ${screen.name}, ${view.fill.label}, ${left}`}
+              aria-label={`${time}, ${cinema.name}, ${screen.name}, ${view.fill.label}, ${viewLabel(view, party)}`}
             >
               <span className="time-top">
                 <b>{time}</b>

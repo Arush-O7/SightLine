@@ -39,6 +39,7 @@ import {
 import { findBestSeats, getHall, getLayout, scoreColor, seatEye, type Seat } from '../lib/hall';
 import { sortSeatIds, useStore } from '../lib/store';
 import { api, ApiFailure, errorMessage } from '../lib/api';
+import { middleSeat, showView, useBookedSeats, viewLabel } from '../lib/showView';
 import { useTitle } from '../lib/useTitle';
 import type { LightMode, ViewMode } from '../three/HallScene';
 
@@ -337,6 +338,13 @@ function Booking({ show }: { show: Show }) {
         .sort((a, b) => a.start.getTime() - b.start.getTime()),
     [movie, show.dateKey],
   );
+  // the best view left for the group at each time, as the listing shows it; this show reads the seat
+  // map's live answer instead, so its number always matches what Pick for Me would choose
+  const sameDayBooked = useBookedSeats(sameDay.map((s) => s.id));
+  const sameDayViews = useMemo(
+    () => new Map(sameDay.map((s) => [s.id, showView(s, party, s.id === show.id ? (serverTaken ?? sameDayBooked?.[s.id]) : sameDayBooked?.[s.id])])),
+    [sameDay, party, serverTaken, sameDayBooked, show.id],
+  );
 
   // keep the current showtime visible when the strip overflows on small screens
   useEffect(() => {
@@ -357,14 +365,29 @@ function Booking({ show }: { show: Show }) {
           </span>
         </div>
         <nav className="bk-times" aria-label="Showtimes at this cinema">
-          {sameDay.map((s) =>
-            s.start.getTime() < now && s.id !== show.id ? null : (
-              <Link key={s.id} to={`/book/${s.id}`} replace className={s.id === show.id ? 'on' : ''} aria-current={s.id === show.id}>
+          {sameDay.map((s) => {
+            if (s.start.getTime() < now && s.id !== show.id) return null;
+            const view = sameDayViews.get(s.id)!;
+            const screen = venueOf(s)?.screen.name ?? getHall(s.hallId).format;
+            // another time opens at the best seats left for the group, once live availability is known
+            const middle = s.id !== show.id && sameDayBooked ? middleSeat(view) : undefined;
+            return (
+              <Link
+                key={s.id}
+                to={middle ? `/book/${s.id}?seat=${middle.id}` : `/book/${s.id}`}
+                replace
+                className={s.id === show.id ? 'on' : ''}
+                aria-current={s.id === show.id}
+                aria-label={`${formatTime(s.start)}, ${screen}, ${viewLabel(view, party)}`}
+              >
                 {formatTime(s.start)}
-                <small>{venueOf(s)?.screen.name ?? getHall(s.hallId).format}</small>
+                <span className="time-score" style={view.score === null ? undefined : { color: scoreColor(view.score) }}>
+                  {view.score ?? '–'}
+                </span>
+                <small>{screen}</small>
               </Link>
-            ),
-          )}
+            );
+          })}
         </nav>
       </header>
 

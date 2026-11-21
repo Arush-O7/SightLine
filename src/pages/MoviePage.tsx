@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, Globe, MapPin } from 'lucide-react';
+import { ArrowLeft, Clock, Globe, MapPin, Navigation } from 'lucide-react';
 import { Backdrop, Poster } from '../components/Art';
 import PartyPicker from '../components/PartyPicker';
 import ShowTimes from '../components/ShowTimes';
 import NotFound from './NotFound';
-import { getCinema } from '../data/cinemas';
+import { directionsUrl, getCinema } from '../data/cinemas';
 import { KIND_LABEL, formatRuntime, getMovie, isLive, showsFor, upcomingDays, type ShowGroup } from '../data/movies';
 import { getLayout } from '../lib/hall';
 import { useBookedSeats } from '../lib/showView';
@@ -141,13 +141,24 @@ export default function MoviePage() {
               const cinema = getCinema(cinemaId)!;
               return (
                 <article key={cinemaId} className="venue">
-                  <header className="venue-head">
-                    <h3>
-                      <Link to={`/cinema/${cinema.id}`}>{cinema.name}</Link>
-                    </h3>
-                    <p className="muted small">
-                      <MapPin size={13} aria-hidden="true" /> {cinema.area}
-                    </p>
+                  <header className="venue-head venue-head-row">
+                    <div>
+                      <h3>
+                        <Link to={`/cinema/${cinema.id}`}>{cinema.name}</Link>
+                      </h3>
+                      <p className="muted small">
+                        <MapPin size={13} aria-hidden="true" /> {cinema.area}
+                      </p>
+                    </div>
+                    <a
+                      className="venue-directions"
+                      href={directionsUrl(cinema)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Get directions to ${cinema.name}`}
+                    >
+                      <Navigation size={14} aria-hidden="true" /> Get directions
+                    </a>
                   </header>
                   <div className="venue-screens">
                     {groups.map((g) => (

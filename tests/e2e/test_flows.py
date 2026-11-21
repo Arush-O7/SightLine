@@ -131,6 +131,18 @@ def run() -> None:
 
         check("film page: pick a day, a cinema and a showtime", film_page)
 
+        def venue_directions():
+            go(page, "/movie/ramayana-rise-of-a-legend")
+            page.locator(".day").nth(1).click()
+            expect(page.locator(".venue .venue-directions")).to_have_count(page.locator(".venue").count())
+            link = page.locator(".venue").first.get_by_role("link", name=re.compile(r"^Get directions to "))
+            expect(link).to_have_attribute("href", re.compile(r"^https://www\.google\.com/maps/search/"))
+            expect(link).to_have_attribute("target", "_blank")
+
+        check("film page: every cinema links to directions", venue_directions)
+
+        listing: dict[str, str] = {}
+
         def showtime_scores():
             go(page, "/movie/ramayana-rise-of-a-legend")
             page.locator(".day").nth(1).click()
@@ -143,10 +155,21 @@ def run() -> None:
             expect(note).to_contain_text("2 seats together")
             # once live availability is in, a time opens the hall at the best seats left
             expect(page.locator(".venue a.time[href*='seat=']").first).to_be_attached(timeout=8000)
-            page.locator(".venue a.time").first.click()
+            first = page.locator(".venue a.time").first
+            listing["score"] = first.locator(".time-score").inner_text()
+            first.click()
             page.wait_for_url(re.compile(r"#/book/.+seat="))
 
         check("film page: each time shows the best view left for the group", showtime_scores)
+
+        def switcher_scores():
+            # the times at the top of the booking page carry the number the listing showed for this show
+            expect(page.locator(".bk-times a.on .time-score")).to_have_text(listing["score"], timeout=8000)
+            scores = page.locator(".bk-times a .time-score")
+            for i in range(scores.count()):
+                expect(scores.nth(i)).to_have_text(re.compile(r"^(\d{1,3}|–)$"))
+
+        check("booking: the time switcher shows the same best view as the listing", switcher_scores)
 
         def booking_header():
             expect(page.locator(".bk-title span")).to_contain_text(re.compile(r"Audi|Main Hall"))
@@ -252,6 +275,32 @@ def run() -> None:
             expect(page.locator(".resume")).to_have_count(0)
 
         check("home: seats chosen earlier can be picked up again or let go", resume_booking)
+
+        def resume_held():
+            go(page, "/movie/ramayana-rise-of-a-legend")
+            page.locator(".day").nth(1).click()
+            page.locator(".venue a.time").first.click()
+            page.wait_for_selector(".seatmap")
+            page.get_by_role("button", name=re.compile(r"^Select Seat")).click()
+            page.get_by_role("button", name="Continue to Payment").click()
+            page.wait_for_url(re.compile(r"#/checkout/"))
+            expect(page.locator(".hold")).to_contain_text(re.compile(r"held for \d\d:\d\d"), timeout=8000)
+            go(page, "/")
+            card = page.locator(".resume")
+            expect(card).to_contain_text(re.compile(r"held for 0[0-6]:\d\d"), timeout=8000)
+            # still held, so the row goes straight back to payment, and the hold keeps its own clock there
+            expect(card.locator(".resume-link")).to_have_attribute("href", re.compile(r"#/checkout/"))
+            page.wait_for_timeout(3000)
+            card.locator(".resume-link").click()
+            page.wait_for_url(re.compile(r"#/checkout/"))
+            page.wait_for_function("/held for \\d\\d:\\d\\d/.test(document.querySelector('.hold')?.textContent ?? '')")
+            mm, ss = map(int, re.search(r"(\d\d):(\d\d)", page.locator(".hold").inner_text()).groups())
+            assert mm * 60 + ss <= 7 * 60 - 3, f"the hold started again at {mm:02}:{ss:02}"
+            go(page, "/")
+            page.locator(".resume").get_by_role("button", name=re.compile("Let go of the seats")).click()
+            expect(page.locator(".resume")).to_have_count(0)
+
+        check("home: seats held for payment count down and lead back to paying", resume_held)
 
         def inbox():
             go(page, "/demo/inbox")
