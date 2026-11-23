@@ -4,7 +4,10 @@ Browser tests for the main flows, run in the installed Chrome.
     npm run dev                 # in one terminal
     npm run test:e2e            # in another
 
-BASE=http://localhost:8787 tests a production build instead.
+BASE=http://localhost:8787 tests a production build instead, and BASE=https://sightline07.vercel.app
+the live site (skip demo:reset there; it only runs on the server's own machine). The browser skips
+the site's Content Security Policy, which forbids the string evaluation Playwright uses to wait on
+the page; visitors still get the policy in full.
 """
 
 import os
@@ -53,7 +56,7 @@ def watch_console(page: Page) -> None:
     page.on("pageerror", lambda err: console_errors.append(str(err)))
 
 def desktop(browser):
-    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    context = browser.new_context(bypass_csp=True, viewport={"width": 1440, "height": 900})
     page = context.new_page()
     watch_console(page)
     return context, page
@@ -356,7 +359,7 @@ def run() -> None:
         check("admin: customers are kept out", staff_only)
 
         def admin_flow():
-            staff = browser.new_context(viewport={"width": 1440, "height": 900})
+            staff = browser.new_context(bypass_csp=True, viewport={"width": 1440, "height": 900})
             spage = staff.new_page()
             watch_console(spage)
             go(spage, "/login")
@@ -394,7 +397,7 @@ def run() -> None:
             panel = spage.locator(".admin-price-grid form").filter(has_text="Standard")
             panel.locator("input").first.fill("200")
             panel.get_by_role("button", name="Save Prices").click()
-            expect(spage.locator(".form-ok")).to_contain_text("prices are saved")
+            expect(spage.locator(".form-ok")).to_contain_text("prices are saved", timeout=8000)
             expect(panel.locator("input").first).to_have_value("200")
             panel.get_by_role("button", name="Reset to Defaults").click()
             expect(spage.locator(".form-ok")).to_contain_text("back to the defaults")
@@ -424,7 +427,7 @@ def run() -> None:
 
         check("sign-up: an email is checked when you leave the field", sign_up_validation)
 
-        phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        phone = browser.new_context(bypass_csp=True, viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
         mpage = phone.new_page()
         watch_console(mpage)
         for path, name in [("/", "home"), ("/movie/jailer-2", "film"), ("/events", "live shows"), ("/cinemas", "cinemas"), ("/help", "help"), ("/signup", "sign-up")]:
