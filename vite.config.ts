@@ -32,7 +32,8 @@ function preloadFonts(patterns: RegExp[]): Plugin {
 /** In development the API runs inside the Vite server, so there is one process and one port. */
 function devApi(): Plugin {
   // optional settings (real email, demo mode, database path); see .env.example
-  if (existsSync('.env')) process.loadEnvFile('.env');
+  // .env.local (written by `neon env pull`) first, so it wins over .env
+  for (const file of ['.env.local', '.env']) if (existsSync(file)) process.loadEnvFile(file);
   return {
     name: 'sightline-dev-api',
     configureServer(server) {

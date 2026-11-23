@@ -8,8 +8,9 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { handleApi } from './app.js';
 import { closeDb, getDb } from './db.js';
 
-// optional settings (real email, port, database path); see .env.example
-if (existsSync('.env')) process.loadEnvFile('.env');
+// optional settings (real email, port, database path); see .env.example. `neon env pull` writes
+// .env.local, which is read first so it wins: a variable already set is never overwritten.
+for (const file of ['.env.local', '.env']) if (existsSync(file)) process.loadEnvFile(file);
 
 const PORT = Number(process.env.PORT ?? 8787);
 const ROOT = resolve('dist');
