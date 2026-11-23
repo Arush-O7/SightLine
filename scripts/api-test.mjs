@@ -520,6 +520,9 @@ for (let i = 0; i < 14; i++) {
   if (x.status === 429) limited = true;
 }
 check('repeated login attempts are rate limited', limited);
+// without TRUST_PROXY the header is not believed, so inventing one changes nothing
+r = await anon('POST', '/auth/login', { email: mail(1), password: 'guess-forwarded' }, { 'X-Forwarded-For': '203.0.113.7' });
+check('a made-up X-Forwarded-For header does not get around the limit', r.status === 429, String(r.status));
 
 // static site + headers
 raw = await fetch(BASE + '/');

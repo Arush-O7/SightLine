@@ -246,29 +246,30 @@ export default function AccountPage() {
             </button>
           </form>
 
-          <div className="signin-method signin-google">
-            <div className="signin-row">
-              <GoogleMark />
-              <div>
-                <h3>Google</h3>
-                <p className="muted">{user.google ? 'Connected. You can sign in with Google.' : 'Not connected.'}</p>
+          {/* a server without Google keys offers nothing to connect, but an account linked earlier can still disconnect */}
+          {user.google || config?.google ? (
+            <div className="signin-method signin-google">
+              <div className="signin-row">
+                <GoogleMark />
+                <div>
+                  <h3>Google</h3>
+                  <p className="muted">{user.google ? 'Connected. You can sign in with Google.' : 'Not connected.'}</p>
+                </div>
               </div>
+              <NoteLine note={googleNote} />
+              {user.google ? (
+                user.hasPassword ? (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={disconnectGoogle} disabled={busy === 'google'}>
+                    {busy === 'google' ? 'Disconnecting…' : 'Disconnect Google'}
+                  </button>
+                ) : null
+              ) : (
+                <a className="btn btn-secondary btn-sm" href={api.googleSignInUrl('/account')}>
+                  Connect Google
+                </a>
+              )}
             </div>
-            <NoteLine note={googleNote} />
-            {user.google ? (
-              user.hasPassword ? (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={disconnectGoogle} disabled={busy === 'google'}>
-                  {busy === 'google' ? 'Disconnecting…' : 'Disconnect Google'}
-                </button>
-              ) : null
-            ) : config?.google ? (
-              <a className="btn btn-secondary btn-sm" href={api.googleSignInUrl('/account')}>
-                Connect Google
-              </a>
-            ) : (
-              <p className="muted small">Google sign-in is not set up on this server.</p>
-            )}
-          </div>
+          ) : null}
         </div>
 
         <div className="card account-card">

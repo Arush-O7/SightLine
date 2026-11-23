@@ -72,14 +72,14 @@ The browser and the server import the same TypeScript model of every hall, seat 
 - **Live availability for a whole listing in one request.** The listing asks the API for the seats booked or held across all its shows at once, then works out the best seats left for the group in the browser from the same hall model the server uses.
 - **A programme without a schedule table.** Showtimes are generated deterministically per cinema, auditorium and day from a seeded random number generator, so every link stays valid. Admin changes (extra shows, cancellations, new titles, prices) are stored as overrides and synced to every server process.
 - **3D that stays fast.** Hundreds of seats are drawn as instanced meshes, the scene loads only when needed so the first paint never waits for Three.js, and the booked view is captured into the ticket as an image.
-- **Security basics done properly.** Passwords hashed with scrypt, sessions stored only as hashes in HttpOnly cookies, Google sign-in with PKCE, state and nonce checks, rate limiting, origin checks on every write, and a strict Content Security Policy.
+- **Security basics done properly.** Passwords hashed with scrypt, sessions stored only as hashes in HttpOnly cookies, Google sign-in with PKCE, state and nonce checks, origin checks on every write, and a strict Content Security Policy. Rate limits count each visitor in the database, so they hold across server instances on a host like Vercel and can’t be dodged with a made-up proxy header.
 - **Accessible.** Seats can be chosen with the keyboard and are announced to screen readers, focus is always visible, and motion stops when the system asks for reduced motion.
 
 ## Testing
 
 | Suite | Checks | Covers |
 |---|---|---|
-| API (`npm run test:api`) | 157 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, showtime availability, show times in Delhi time, admin roles, schedule changes, prices, rate limits, security headers |
+| API (`npm run test:api`) | 158 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, showtime availability, show times in Delhi time, admin roles, schedule changes, prices, rate limits, security headers |
 | Browser (`npm run test:e2e`, Playwright) | 38 | The full journey from the home page to a paid ticket and a cancellation, the best view left on each showtime and on the booking page, directions from the listings, picking a booking back up with its hold still counting down, the 3D view, admin pages, phone layouts, and zero errors in the browser console |
 
 The API suite runs against SQLite and PostgreSQL, and passes with the server’s clock set to UTC.
@@ -130,9 +130,20 @@ React 19, TypeScript, Vite and Three.js in the browser; a Node HTTP server with 
 - `server/`: the API, the database layer, Google sign-in, the test payment gateway and email.
 - `scripts/api-test.mjs` and `tests/e2e/`: the two test suites.
 
-## Limitations and next steps
+## Limitations
 
 - SightLine isn’t connected to any cinema. Showtimes, live shows, prices, auditorium layouts and the background audience are illustrative; the three auditorium types stand in for each cinema’s own measured halls. A real launch would import each cinema’s seat plans and programme.
 - Payments run in a test gateway built to the same rules as a real one; `server/gateway.ts` is the single place to swap in a provider such as Razorpay.
 - Photos of cinemas and live shows are freely licensed from Wikimedia Commons (see the site’s Photo Credits page). Movie posters are the films’ official posters, linked from Wikipedia or TMDB and not stored in this repository.
-- Next: measured layouts for real auditoriums, accessibility filters (step-free seats, aisle seats), and testing whether showing the view changes which seats people book.
+
+## From demo to real cinemas
+
+What SightLine adds is the seat view and the view score. The seats themselves belong to each cinema’s ticketing system, which also sells them at the box office, in the cinema’s own app and through aggregators, so a real launch builds on that system rather than replacing it:
+
+1. **Measure each hall.** Start from the cinema’s seat plan and drawings and check the screen size, row spacing and step heights on site. Then photograph the screen from a few seats and compare each photo with SightLine’s view from the same seat. In code, the three shared hall types in `src/lib/hall.ts` become one data file per auditorium.
+2. **Start as a button.** A “See the view” button on the cinema’s own seat map opens SightLine at that seat. The cinema still decides which seats are free and takes the payment, so SightLine handles no money or tickets.
+3. **Pilot and measure.** One cinema, one or two halls, a few weeks: how many bookers open the view, whether they choose different or pricier seats, and whether complaints about bad seats fall.
+4. **Connect to the ticketing system.** Showtimes, occupancy and seat locks come from the cinema’s API instead of SightLine’s own tables, and the test gateway is swapped for a real one if SightLine takes payments itself.
+5. **Cover the basics for India:** a registered business with GST, licensed poster artwork, DLT registration for SMS, the Digital Personal Data Protection Act for customer data, and written permission to use a cinema’s name.
+
+Still to build in the product: filters for step-free and aisle seats.

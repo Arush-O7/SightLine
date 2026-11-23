@@ -109,7 +109,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           </p>
         ) : null}
 
-        {config?.google || config?.demo ? (
+        {config?.google ? (
           <>
             <a
               href={api.googleSignInUrl(next)}

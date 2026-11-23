@@ -282,22 +282,49 @@ function safeNext(v: string | null): string {
   return v;
 }
 
-// In-memory per process. With several app servers this would move to Redis.
-const buckets = new Map<string, { count: number; resetAt: number }>();
+/**
+ * The address a request comes from, for rate limits. Behind a proxy the connection is the proxy's,
+ * so its record of the visitor is used instead. Vercel always writes that header itself; a proxy of
+ * our own is believed only with TRUST_PROXY=1, because without one a client could send the header
+ * to dodge the limits.
+ */
+function visitorAddress(req: IncomingMessage): string {
+  // every proxy appends the address it saw, so the last entry is the one our own proxy wrote
+  const forwarded = (name: string) =>
+    String(req.headers[name] ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .at(-1);
+  const direct = req.socket.remoteAddress ?? 'unknown';
+  if (process.env.VERCEL) return forwarded('x-vercel-forwarded-for') ?? forwarded('x-forwarded-for') ?? direct;
+  if (process.env.TRUST_PROXY === '1') return forwarded('x-forwarded-for') ?? direct;
+  return direct;
+}
 
-function limit(req: IncomingMessage, group: string, max: number, windowMs = 60_000) {
-  const ip = req.socket.remoteAddress ?? 'unknown';
-  const key = `${group}:${ip}`;
+/**
+ * At most `max` attempts per visitor in each window. The counts are kept in the database so they
+ * hold across server processes, including the short-lived instances a host like Vercel runs.
+ */
+async function limit(db: Query, req: IncomingMessage, group: string, max: number, windowMs = 60_000) {
   const now = Date.now();
-  const b = buckets.get(key);
-  if (!b || b.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    if (buckets.size > 5000) for (const [k, v] of buckets) if (v.resetAt < now) buckets.delete(k);
-    return;
-  }
-  if (++b.count > max) {
+  const row = await db.get<{ hits: number; reset_at: number }>(
+    `INSERT INTO rate_limits (bucket, hits, reset_at) VALUES (?, 1, ?)
+     ON CONFLICT (bucket) DO UPDATE SET
+       hits = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.hits + 1 END,
+       reset_at = CASE WHEN rate_limits.reset_at <= ? THEN ? ELSE rate_limits.reset_at END
+     RETURNING hits, reset_at`,
+    `${group}:${visitorAddress(req)}`,
+    now + windowMs,
+    now,
+    now,
+    now + windowMs,
+  );
+  // windows that have closed are cleared out now and then, rather than on every request
+  if (Math.random() < 0.01) await db.run('DELETE FROM rate_limits WHERE reset_at <= ?', now);
+  if (row && Number(row.hits) > max) {
     throw new ApiError(429, 'too_many_requests', 'Too many attempts. Wait a minute and try again.', {
-      retryAfter: Math.ceil((b.resetAt - now) / 1000),
+      retryAfter: Math.ceil((Number(row.reset_at) - now) / 1000),
     });
   }
 }
@@ -673,7 +700,7 @@ async function googleRoutes(db: Database, req: IncomingMessage, res: ServerRespo
 
   if (step === 'start') {
     if (!googleConfigured()) return toLogin('google_unavailable');
-    limit(req, 'google', 30);
+    await limit(db, req, 'google', 30);
     const start = googleAuthUrl(googleRedirectUri(req));
     const now = Date.now();
     await db.run('DELETE FROM oauth_states WHERE expires_at <= ?', now);
@@ -773,11 +800,9 @@ async function googleRoutes(db: Database, req: IncomingMessage, res: ServerRespo
 
 async function route(req: IncomingMessage, res: ServerResponse, method: string, path: string[], query: URLSearchParams): Promise<void> {
   const mutating = method !== 'GET' && method !== 'HEAD';
-  if (mutating) {
-    checkOrigin(req);
-    limit(req, 'write', 300); // flood guard only; sign-in and reset have tighter limits
-  }
+  if (mutating) checkOrigin(req);
   const db = await getDb();
+  if (mutating) await limit(db, req, 'write', 300); // flood guard only; sign-in and reset have tighter limits
   await syncSchedule(db);
 
   if (method === 'GET' && path[0] === 'health') {
@@ -869,7 +894,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       if (!isLoopback(req)) throw new ApiError(403, 'local_only', 'Reset is only allowed from the machine running the server.');
       await readJson(req);
       await db.tx(async (q) => {
-        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'custom_titles', 'zone_prices', 'users']) {
+        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'custom_titles', 'zone_prices', 'users', 'rate_limits']) {
           await q.run(`DELETE FROM ${table}`);
         }
       });
@@ -889,7 +914,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     if (method === 'GET' && path[1] === 'me') return send(res, 200, { user: await currentUser(db, req) });
 
     if (method === 'POST' && path[1] === 'signup') {
-      limit(req, 'auth', 10);
+      await limit(db, req, 'auth', 10);
       const body = await readJson(req);
       const name = cleanName(body.name);
       const email = cleanEmail(body.email);
@@ -919,7 +944,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'login') {
-      limit(req, 'auth', 10);
+      await limit(db, req, 'auth', 10);
       const body = await readJson(req);
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       const password = typeof body.password === 'string' ? body.password : '';
@@ -950,7 +975,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
 
     if (method === 'POST' && path[1] === 'demo') {
       if (!demoEnabled()) throw new ApiError(404, 'not_found', 'No such endpoint.');
-      limit(req, 'demo', 20);
+      await limit(db, req, 'demo', 20);
       const body = await readJson(req);
       let id: number;
       if (body.as === 'admin') {
@@ -965,7 +990,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'forgot') {
-      limit(req, 'reset', 8);
+      await limit(db, req, 'reset', 8);
       const body = await readJson(req);
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       const row = await db.get<{ id: number; name: string; pass_hash: string }>('SELECT id, name, pass_hash FROM users WHERE email = ?', email);
@@ -992,7 +1017,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'reset') {
-      limit(req, 'reset', 8);
+      await limit(db, req, 'reset', 8);
       const body = await readJson(req);
       const token = typeof body.token === 'string' ? body.token : '';
       const password = cleanPassword(body.password);
@@ -1010,7 +1035,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'verify' && !path[2]) {
-      limit(req, 'verify', 20);
+      await limit(db, req, 'verify', 20);
       const body = await readJson(req);
       const token = typeof body.token === 'string' ? body.token : '';
       const row = await db.get<{ user_id: number }>('SELECT user_id FROM email_verifications WHERE token_hash = ? AND expires_at > ?', sha256(token), Date.now());
@@ -1023,7 +1048,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'verify' && path[2] === 'resend') {
-      limit(req, 'verify-send', 4);
+      await limit(db, req, 'verify-send', 4);
       const user = await requireUser(db, req);
       await readJson(req);
       if (!user.emailVerified) await sendVerification(db, req, user);
@@ -1039,7 +1064,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'DELETE' && path[1] === 'me') {
-      limit(req, 'password', 10);
+      await limit(db, req, 'password', 10);
       const user = await requireUser(db, req);
       const body = await readJson(req);
       const confirm = typeof body.confirm === 'string' ? body.confirm.trim().toLowerCase() : '';
@@ -1065,7 +1090,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
 
     if (method === 'POST' && path[1] === 'password') {
-      limit(req, 'password', 10);
+      await limit(db, req, 'password', 10);
       const { user, tokenHash } = await requireSession(db, req);
       const body = await readJson(req);
       const next = cleanPassword(body.newPassword);

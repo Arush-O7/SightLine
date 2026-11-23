@@ -251,7 +251,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - **Disabled:** 35% opacity.
 - **Small:** 34px tall, 13px label, for dense rows such as the devices list and the confirmation banner.
 - **Danger:** transparent with a Danger outline and Danger text. Only for irreversible actions ("Delete My Account"), and only enabled once the visitor has typed their email.
-- **Continue with Google:** a Secondary button carrying Google's four-colour "G". The label keeps Google's own wording and casing, the one exception to Title Case, because Google's sign-in branding requires it. The G is the only multi-colour mark in the interface.
+- **Continue with Google:** a Secondary button carrying Google's four-colour "G". The label keeps Google's own wording and casing, the one exception to Title Case, because Google's sign-in branding requires it. The G is the only multi-colour mark in the interface. It appears only when the server has Google sign-in set up; without it, the sign-in page offers email and the demo accounts, and the account page leaves Google out of its sign-in methods.
 
 ### Chips and Segmented Controls
 - **Style:** pill with a hairline border and Muted text; the selected one inverts to Paper fill with Ink text.
