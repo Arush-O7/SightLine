@@ -12,6 +12,7 @@ import { sortSeatIds, useStore } from '../lib/store';
 import { TIME_ZONE } from '../lib/time';
 import { useTitle } from '../lib/useTitle';
 import { TicketSkeleton } from '../components/Skeleton';
+import SeatRating from '../components/SeatRating';
 
 function downloadCalendar(booking: Booking, movie: Movie, show: Show, hall: HallConfig) {
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -240,6 +241,13 @@ export default function TicketPage() {
           {isLive(movie) ? 'Browse Live Shows' : 'Browse Movies'}
         </Link>
       </div>
+
+      <SeatRating bookingId={booking.id} />
+
+      <p className="ticket-help muted small">
+        Something wrong with this booking?{' '}
+        <Link to={`/contact?topic=booking&ref=${encodeURIComponent(booking.id)}`}>Contact us</Link> and mention {booking.id}.
+      </p>
     </div>
   );
 }

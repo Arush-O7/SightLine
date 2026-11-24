@@ -252,6 +252,39 @@ def run() -> None:
 
         check("ticket: opened later it shows the plain header", ticket_later)
 
+        def ticket_rating():
+            rating = page.locator(".seat-rating")
+            expect(rating.get_by_role("heading", name="How Easy Was Choosing Your Seat?")).to_be_visible(timeout=8000)
+            rating.get_by_role("radio", name=re.compile("Very easy")).check()
+            rating.get_by_label("Anything to add? (optional)").fill("Seeing the view first helped.")
+            rating.get_by_role("button", name="Send Rating").click()
+            expect(rating).to_contain_text("5 out of 5", timeout=8000)
+            # the rating is kept, so it is still there after a reload
+            go(page, f"/ticket/{booked_id}")
+            expect(page.locator(".seat-rating")).to_contain_text("Thanks for Your Rating", timeout=8000)
+            link = page.get_by_role("link", name="Contact us", exact=True)
+            expect(link).to_have_attribute("href", re.compile(rf"#/contact\?topic=booking&ref={booked_id}"))
+
+        check("ticket: rate choosing the seat, and a way to report a problem", ticket_rating)
+
+        def contact_message():
+            page.get_by_role("link", name="Contact us", exact=True).click()
+            page.wait_for_url(re.compile(r"#/contact"))
+            form = page.locator(".contact-card")
+            # a signed-in visitor writing about this ticket starts with the topic, reference, name and address filled in
+            expect(form.get_by_label("Booking or ticket problem")).to_be_checked()
+            expect(form.get_by_label("Booking reference (optional)")).to_have_value(booked_id)
+            expect(form.get_by_label("Email for our reply")).not_to_have_value("")
+            form.get_by_role("button", name="Send Message").click()
+            expect(form.get_by_text("Write at least 10 characters.")).to_be_visible()
+            form.get_by_label("Message").fill("The QR code did not scan at the door.")
+            form.get_by_role("button", name="Send Message").click()
+            sent = page.locator(".contact-sent")
+            expect(sent).to_contain_text("Message Sent", timeout=8000)
+            expect(sent).to_contain_text(re.compile(r"MSG-[A-Z0-9]{6}"))
+
+        check("contact: send a message about a booking", contact_message)
+
         def my_tickets_cancel():
             go(page, "/bookings")
             row = page.locator(".booking-item", has_text=booked_id)
@@ -401,6 +434,19 @@ def run() -> None:
             expect(panel.locator("input").first).to_have_value("200")
             panel.get_by_role("button", name="Reset to Defaults").click()
             expect(spage.locator(".form-ok")).to_contain_text("back to the defaults")
+
+            # the message and the rating sent earlier reach the staff
+            spage.get_by_role("link", name="Messages", exact=True).click()
+            expect(spage.locator(".ratings-average")).to_contain_text("out of 5", timeout=8000)
+            item = spage.locator(".admin-message").filter(has_text="The QR code did not scan at the door.")
+            expect(item).to_contain_text(f"Booking {booked_id}")
+            expect(item.get_by_role("link", name="Reply by Email")).to_have_attribute("href", re.compile(r"^mailto:"))
+            item.get_by_role("button", name="Mark Replied").click()
+            expect(spage.locator(".admin-message").filter(has_text="The QR code did not scan at the door.")).to_have_count(0)
+            spage.get_by_role("button", name=re.compile(r"^Replied")).click()
+            done = spage.locator(".admin-message").filter(has_text="The QR code did not scan at the door.")
+            done.get_by_role("button", name="Close").click()
+            expect(done).to_have_count(0)
             staff.close()
 
         check("admin: shows, titles and prices", admin_flow)

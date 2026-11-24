@@ -98,6 +98,11 @@ export default function AdminOverview() {
     ['Upcoming bookings', String(t.upcoming)],
     [t.refunds === 1 ? '1 refund' : `${t.refunds} refunds`, money(t.refunded)],
     ['Accounts', String(t.users)],
+    [t.newMessages === 1 ? 'New message' : 'New messages', String(t.newMessages)],
+    [
+      t.ratings ? `Seat-choice rating, from ${t.ratings}` : 'Seat-choice rating',
+      t.ratingAverage === null ? '–' : `${t.ratingAverage.toFixed(1)} / 5`,
+    ],
   ];
   return (
     <div className="admin-overview">

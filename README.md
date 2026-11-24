@@ -17,6 +17,7 @@ Booking sites show a seat map: a grid of identical squares. It tells you where a
 - **The best view left at every showtime.** Each time in the listings carries the best score still free for your group, counting seats other people have booked, so a family of four can see that the 9:50 show still has four seats together scoring 84 while the 15:45 has only 35, before opening either. The same numbers stay beside the other times at that cinema on the booking page.
 - **Help choosing.** A heatmap of view quality across the hall, side-by-side comparison of two seats, the most-booked seats marked on the map, and a “pick for me” that finds the best seats together for a group.
 - **The full booking flow.** Real movies and live shows, eight real Delhi cinemas, seat holds, test payments by UPI or card, tickets with a QR code and a picture of the view you chose, directions to the cinema, emails, accounts and an admin side for cinema staff. Seats you chose but didn’t book wait on the home page for you to pick up again, with the time left on the hold if you had already gone on to pay.
+- **A way to reach the team, and a measure of whether it works.** A Contact page takes booking problems, ideas and enquiries from cinemas that want SightLine, and every ticket asks one question: how easy was choosing your seat, from 1 to 5. Staff answer messages and read the average rating in the admin’s Messages tab, so “does seeing the view help?” gets a number instead of a guess.
 
 ![The home page: the headline over a live 3D auditorium, with the movie's real poster on the screen](docs/screenshots/home.jpg)
 
@@ -81,8 +82,8 @@ The browser and the server import the same TypeScript model of every hall, seat 
 
 | Suite | Checks | Covers |
 |---|---|---|
-| API (`npm run test:api`) | 158 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, showtime availability, show times in Delhi time, admin roles, schedule changes, prices, rate limits, security headers |
-| Browser (`npm run test:e2e`, Playwright) | 38 | The full journey from the home page to a paid ticket and a cancellation, the best view left on each showtime and on the booking page, directions from the listings, picking a booking back up with its hold still counting down, the 3D view, admin pages, phone layouts, and zero errors in the browser console |
+| API (`npm run test:api`) | 180 | Sign-up and sessions, Google sign-in (PKCE, replay, account linking), seat holds, double-booking races, payments, refunds, ticket privacy, showtime availability, show times in Delhi time, admin roles, schedule changes, prices, contact messages (validation, the bot trap, receipts only to your own address), seat-choice ratings, rate limits, security headers |
+| Browser (`npm run test:e2e`, Playwright) | 40 | The full journey from the home page to a paid ticket and a cancellation, the best view left on each showtime and on the booking page, directions from the listings, rating the seat choice and contacting us about a booking, picking a booking back up with its hold still counting down, the 3D view, admin pages including messages, phone layouts, and zero errors in the browser console |
 
 The API suite runs against SQLite and PostgreSQL, and passes with the server’s clock set to UTC.
 

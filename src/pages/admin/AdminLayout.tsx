@@ -38,6 +38,7 @@ export default function AdminLayout() {
           <NavLink to="/admin/prices">Prices</NavLink>
           <NavLink to="/admin/bookings">Bookings</NavLink>
           <NavLink to="/admin/users">Customers</NavLink>
+          <NavLink to="/admin/messages">Messages</NavLink>
         </nav>
       </header>
       <Outlet />

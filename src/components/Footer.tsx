@@ -38,6 +38,7 @@ export default function Footer() {
           <div>
             <h2>Support</h2>
             <Link to="/help">Help &amp; FAQ</Link>
+            <Link to="/contact">Contact Us</Link>
             <Link to="/help#terms">Terms</Link>
             <Link to="/help#privacy">Privacy</Link>
             <Link to="/credits">Photo Credits</Link>

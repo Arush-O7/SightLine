@@ -1,3 +1,4 @@
+import type { MessageStatus, MessageTopic } from '../data/contact';
 import type { ScheduleChange, TitleRecord } from '../data/movies';
 import type { PriceOverride } from './hall';
 /** Thin client for the SightLine API. Every failure becomes an ApiFailure with a message fit to show. */
@@ -57,8 +58,58 @@ export interface AdminBooking {
   createdAt: number;
 }
 
+export interface SeatRating {
+  rating: number;
+  comment: string;
+  updatedAt: number;
+}
+
+export interface MessageInput {
+  name: string;
+  email: string;
+  topic: MessageTopic;
+  bookingRef: string;
+  message: string;
+  /** never shown to people; only a bot fills it in */
+  website: string;
+}
+
+export interface AdminMessage {
+  id: string;
+  name: string;
+  email: string;
+  topic: MessageTopic;
+  bookingRef: string | null;
+  message: string;
+  status: MessageStatus;
+  /** sent while signed in to an account */
+  fromAccount: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AdminRatings {
+  count: number;
+  average: number | null;
+  /** how many gave 1, 2, 3, 4 and 5 */
+  distribution: number[];
+  comments: { bookingId: string; title: string; rating: number; comment: string; name: string; at: number }[];
+}
+
 export interface AdminOverview {
-  totals: { revenue: number; due: number; bookings: number; tickets: number; upcoming: number; refunds: number; refunded: number; users: number };
+  totals: {
+    revenue: number;
+    due: number;
+    bookings: number;
+    tickets: number;
+    upcoming: number;
+    refunds: number;
+    refunded: number;
+    users: number;
+    newMessages: number;
+    ratings: number;
+    ratingAverage: number | null;
+  };
   daily: { date: string; revenue: number; bookings: number; tickets: number }[];
   byTitle: { key: string; bookings: number; tickets: number; revenue: number }[];
   byCinema: { key: string; bookings: number; tickets: number; revenue: number }[];
@@ -223,6 +274,10 @@ export const api = {
     idempotencyKey: string;
   }) => request<{ booking: Booking }>('POST', '/bookings', payload).then((r) => r.booking),
   cancelBooking: (id: string) => request<{ ok: true; refunded: boolean }>('DELETE', `/bookings/${enc(id)}`),
+  rating: (bookingId: string) => request<{ rating: SeatRating | null }>('GET', `/bookings/${enc(bookingId)}/rating`).then((r) => r.rating),
+  rate: (bookingId: string, rating: number, comment: string) =>
+    request<{ rating: SeatRating }>('PUT', `/bookings/${enc(bookingId)}/rating`, { rating, comment }).then((r) => r.rating),
+  sendMessage: (input: MessageInput) => request<{ id: string; receipt: boolean }>('POST', '/messages', input),
 
   config: () => request<SiteConfig>('GET', '/config'),
   media: () => request<{ movies: Record<string, MovieMedia> }>('GET', '/media').then((r) => r.movies),
@@ -247,6 +302,10 @@ export const api = {
     removeTitle: (id: string) => request<{ ok: true }>('DELETE', `/admin/titles/${enc(id)}`),
     prices: () => request<{ halls: AdminHallPrices[] }>('GET', '/admin/prices').then((r) => r.halls),
     savePrices: (prices: PriceOverride[]) => request<{ ok: true }>('PUT', '/admin/prices', { prices }),
+    messages: (status: MessageStatus | 'all') =>
+      request<{ messages: AdminMessage[]; counts: Record<MessageStatus, number> }>('GET', `/admin/messages?status=${status}`),
+    setMessageStatus: (id: string, status: MessageStatus) => request<{ ok: true }>('PATCH', `/admin/messages/${enc(id)}`, { status }),
+    ratings: () => request<AdminRatings>('GET', '/admin/ratings'),
   },
   forgot: (email: string) => request<{ ok: true }>('POST', '/auth/forgot', { email }),
   resetPassword: (token: string, password: string) => request<{ ok: true }>('POST', '/auth/reset', { token, password }),

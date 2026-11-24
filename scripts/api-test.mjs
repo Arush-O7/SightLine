@@ -513,6 +513,65 @@ r = await staff('PUT', '/admin/prices', { prices: [{ hallId: 'h1', zoneId: std.z
 r = await anon('GET', '/schedule');
 check('setting the default price clears the change', r.status === 200 && !r.data.prices.length);
 
+// contact messages
+const note = { name: 'Neha Visitor', email: 'neha@example.com', topic: 'feedback', bookingRef: '', message: 'The seat view made choosing easy.', website: '' };
+r = await anon('POST', '/messages', note);
+check('anyone can send a message from the Contact page', r.status === 201 && /^MSG-[A-Z0-9]{6}$/.test(r.data.id) && r.data.receipt === false, JSON.stringify(r.data));
+const visitorMessage = r.data.id;
+r = await anon('POST', '/messages', { ...note, topic: 'gossip' });
+check('a message needs a known topic', r.status === 400 && r.data.error.code === 'invalid_topic');
+r = await anon('POST', '/messages', { ...note, message: 'Hi' });
+check('a message needs some words in it', r.status === 400 && r.data.error.code === 'invalid_message');
+r = await anon('POST', '/messages', { ...note, topic: 'booking', bookingRef: 'ticket 42' });
+check('a booking reference must look like one', r.status === 400 && r.data.error.code === 'invalid_booking_ref');
+r = await anon('POST', '/messages', { ...note, name: 'Bot Filler', website: 'https://spam.example.com' });
+check('a bot that fills the hidden field is told it worked', r.status === 201);
+const demoUser = (await cust('GET', '/auth/me')).data.user;
+r = await cust('POST', '/messages', { ...note, name: demoUser.name, email: demoUser.email, topic: 'booking', bookingRef: 'sl-ab12cd' });
+const ownMessage = r.data.id;
+check('a signed-in customer writing from their own address gets a receipt', r.status === 201 && r.data.receipt === true, JSON.stringify(r.data));
+r = await anon('GET', '/demo/outbox');
+check('the receipt carries the reference', r.data.emails.some((m) => m.kind === 'contact' && m.subject.includes(ownMessage)));
+r = await cust('POST', '/messages', { ...note, email: 'someone-else@example.com' });
+check('no receipt goes to an address that is not the account’s own', r.status === 201 && r.data.receipt === false);
+
+r = await cust('GET', '/admin/messages');
+check('customers cannot read messages', r.status === 403);
+r = await staff('GET', '/admin/messages?status=new');
+check(
+  'staff see new messages, without the one the bot sent',
+  r.status === 200 && r.data.messages.some((m) => m.id === visitorMessage) && !r.data.messages.some((m) => m.name === 'Bot Filler') && r.data.counts.new >= 3,
+  JSON.stringify(r.data.counts),
+);
+check('a booking reference is stored in capitals', r.data.messages.find((m) => m.id === ownMessage)?.bookingRef === 'SL-AB12CD');
+r = await staff('PATCH', `/admin/messages/${visitorMessage}`, { status: 'replied' });
+check('staff can mark a message replied', r.status === 200);
+r = await staff('GET', '/admin/messages?status=replied');
+check('a replied message moves to Replied', r.data.messages.some((m) => m.id === visitorMessage) && r.data.counts.replied === 1);
+r = await staff('PATCH', `/admin/messages/${visitorMessage}`, { status: 'archived' });
+check('only New, Replied and Closed are allowed', r.status === 400 && r.data.error.code === 'invalid_status');
+let contactLimited = false;
+for (let i = 0; i < 6 && !contactLimited; i++) contactLimited = (await anon('POST', '/messages', note)).status === 429;
+check('sending messages is rate limited', contactLimited);
+
+// seat-choice rating
+const ticket = (await cust('GET', '/bookings')).data.bookings[0].id;
+r = await cust('GET', `/bookings/${ticket}/rating`);
+check('a ticket starts without a rating', r.status === 200 && r.data.rating === null);
+r = await cust('PUT', `/bookings/${ticket}/rating`, { rating: 6, comment: '' });
+check('a rating is 1 to 5', r.status === 400 && r.data.error.code === 'invalid_rating');
+r = await cust('PUT', `/bookings/${ticket}/rating`, { rating: 3, comment: '' });
+r = await cust('PUT', `/bookings/${ticket}/rating`, { rating: 5, comment: 'Saw the view before paying.' });
+check('the owner can rate and change the rating', r.status === 200 && r.data.rating.rating === 5);
+r = await cust('GET', `/bookings/${ticket}/rating`);
+check('the changed rating is the one kept', r.data.rating?.rating === 5 && r.data.rating.comment === 'Saw the view before paying.');
+r = await staff('PUT', `/bookings/${ticket}/rating`, { rating: 1, comment: '' });
+check('nobody else can rate someone’s ticket', r.status === 404);
+r = await staff('GET', '/admin/ratings');
+check('staff see the average and the comment', r.status === 200 && r.data.count === 1 && r.data.average === 5 && r.data.comments[0]?.comment === 'Saw the view before paying.', JSON.stringify(r.data));
+r = await staff('GET', '/admin/overview');
+check('the overview counts new messages and the rating', r.data.totals.newMessages >= 2 && r.data.totals.ratingAverage === 5, JSON.stringify(r.data.totals));
+
 // brute-force limit
 let limited = false;
 for (let i = 0; i < 14; i++) {

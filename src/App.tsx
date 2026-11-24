@@ -19,6 +19,8 @@ const BookingsPage = lazy(() => import('./pages/BookingsPage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const AdminMessages = lazy(() => import('./pages/admin/AdminMessages'));
 const ForgotPage = lazy(() => import('./pages/ForgotPage'));
 const ResetPage = lazy(() => import('./pages/ResetPage'));
 const VerifyPage = lazy(() => import('./pages/VerifyPage'));
@@ -87,6 +89,7 @@ export default function App() {
               <Route path="/login" element={<AuthPage mode="login" />} />
               <Route path="/signup" element={<AuthPage mode="signup" />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="/forgot" element={<ForgotPage />} />
               <Route path="/reset" element={<ResetPage />} />
               <Route path="/verify" element={<VerifyPage />} />
@@ -130,6 +133,7 @@ export default function App() {
                 <Route path="titles" element={<AdminTitles />} />
                 <Route path="prices" element={<AdminPrices />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="messages" element={<AdminMessages />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

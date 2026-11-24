@@ -33,6 +33,16 @@ import {
   type TitleRecord,
 } from '../src/data/movies.js';
 import { CINEMAS, getCinema } from '../src/data/cinemas.js';
+import {
+  BOOKING_REF,
+  MESSAGE_MAX,
+  MESSAGE_MIN,
+  MESSAGE_STATUSES,
+  RATING_COMMENT_MAX,
+  isMessageTopic,
+  topicLabel,
+  type MessageStatus,
+} from '../src/data/contact.js';
 import { hashString, mulberry32 } from '../src/lib/rng.js';
 import { delhiTime } from '../src/lib/time.js';
 import { movieMedia, tmdbConfigured } from './media.js';
@@ -469,12 +479,49 @@ async function seatsOf(db: Query, bookingId: string): Promise<string[]> {
   return (await db.all<{ seat_id: string }>('SELECT seat_id FROM booking_seats WHERE booking_id = ?', bookingId)).map((r) => r.seat_id);
 }
 
-function newBookingId(): string {
+/** A short reference people can read out or type: no 0/O or 1/I to mix up. */
+function readableId(prefix: string): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return 'SL-' + Array.from(randomBytes(6), (b) => alphabet[b % alphabet.length]).join('');
+  return prefix + Array.from(randomBytes(6), (b) => alphabet[b % alphabet.length]).join('');
 }
+const newBookingId = () => readableId('SL-');
+const newMessageId = () => readableId('MSG-');
 
 const newPaymentId = () => 'pay_' + randomBytes(9).toString('base64url');
+
+/** A booking reference typed into the Contact form: optional, and checked only for its shape. */
+function cleanBookingRef(v: unknown): string | null {
+  const ref = typeof v === 'string' ? v.trim().toUpperCase() : '';
+  if (!ref) return null;
+  if (!BOOKING_REF.test(ref)) throw bad('invalid_booking_ref', 'A booking reference looks like SL-AB12CD. Leave it empty if you don’t have one.');
+  return ref;
+}
+
+interface MessageRow {
+  id: string;
+  user_id: number | null;
+  name: string;
+  email: string;
+  topic: string;
+  booking_ref: string | null;
+  body: string;
+  status: MessageStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+const messageJson = (r: MessageRow) => ({
+  id: r.id,
+  name: r.name,
+  email: r.email,
+  topic: r.topic,
+  bookingRef: r.booking_ref,
+  message: r.body,
+  status: r.status,
+  fromAccount: r.user_id !== null,
+  createdAt: Number(r.created_at),
+  updatedAt: Number(r.updated_at),
+});
 
 async function recordPayment(
   db: Query,
@@ -894,7 +941,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       if (!isLoopback(req)) throw new ApiError(403, 'local_only', 'Reset is only allowed from the machine running the server.');
       await readJson(req);
       await db.tx(async (q) => {
-        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'custom_titles', 'zone_prices', 'users', 'rate_limits']) {
+        for (const table of ['outbox', 'oauth_states', 'email_verifications', 'password_resets', 'payments', 'booking_seats', 'bookings', 'holds', 'sessions', 'schedule_changes', 'custom_titles', 'zone_prices', 'messages', 'seat_ratings', 'users', 'rate_limits']) {
           await q.run(`DELETE FROM ${table}`);
         }
       });
@@ -1200,6 +1247,41 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
   if (path[0] === 'bookings') {
     const user = await requireUser(db, req);
 
+    // how easy choosing the seat was, 1 to 5: one rating per booking, which its owner can change
+    if (path[1] && path[2] === 'rating') {
+      const booking = await db.get<{ id: string; movie_id: string }>('SELECT id, movie_id FROM bookings WHERE id = ? AND user_id = ?', path[1], user.id);
+      if (!booking) throw new ApiError(404, 'booking_not_found', 'We could not find that ticket.');
+      if (method === 'GET') {
+        const row = await db.get<{ rating: number; comment: string; updated_at: number }>(
+          'SELECT rating, comment, updated_at FROM seat_ratings WHERE booking_id = ?',
+          booking.id,
+        );
+        return send(res, 200, { rating: row ? { rating: Number(row.rating), comment: row.comment, updatedAt: Number(row.updated_at) } : null });
+      }
+      if (method === 'PUT') {
+        await limit(db, req, 'rating', 20);
+        const body = await readJson(req);
+        const rating = Number(body.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw bad('invalid_rating', 'Choose a rating from 1 to 5.');
+        const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
+        if (comment.length > RATING_COMMENT_MAX) throw bad('invalid_comment', `Keep the comment under ${RATING_COMMENT_MAX} characters.`);
+        const now = Date.now();
+        await db.run(
+          `INSERT INTO seat_ratings (booking_id, user_id, movie_id, rating, comment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (booking_id) DO UPDATE SET rating = excluded.rating, comment = excluded.comment, updated_at = excluded.updated_at`,
+          booking.id,
+          user.id,
+          booking.movie_id,
+          rating,
+          comment,
+          now,
+          now,
+        );
+        return send(res, 200, { rating: { rating, comment, updatedAt: now } });
+      }
+      throw new ApiError(405, 'method_not_allowed', 'That method is not supported here.');
+    }
+
     if (method === 'GET' && !path[1]) {
       const rows = await db.all<BookingRow>(`SELECT ${BOOKING_COLS} FROM bookings WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`, user.id);
       // one query for every ticket's seats rather than one per ticket
@@ -1315,6 +1397,53 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     }
   }
 
+  // a message to the SightLine team from the Contact page; anyone can send one, signed in or not
+  if (method === 'POST' && path[0] === 'messages' && !path[1]) {
+    await limit(db, req, 'contact', 8, 10 * 60_000);
+    const body = await readJson(req);
+    // a field people never see: only a bot fills it in, and it is told the message went through
+    if (typeof body.website === 'string' && body.website.trim()) return send(res, 201, { id: newMessageId(), receipt: false });
+    const name = cleanName(body.name);
+    const email = cleanEmail(body.email);
+    if (!isMessageTopic(body.topic)) throw bad('invalid_topic', 'Choose what your message is about.');
+    const topic = body.topic;
+    const bookingRef = cleanBookingRef(body.bookingRef);
+    const text = typeof body.message === 'string' ? body.message.trim() : '';
+    if (text.length < MESSAGE_MIN || text.length > MESSAGE_MAX) {
+      throw bad('invalid_message', `Write a message of ${MESSAGE_MIN} to ${MESSAGE_MAX.toLocaleString('en-IN')} characters.`);
+    }
+    const user = await currentUser(db, req);
+    const id = newMessageId();
+    const now = Date.now();
+    await db.run(
+      'INSERT INTO messages (id, user_id, name, email, topic, booking_ref, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      id,
+      user?.id ?? null,
+      name,
+      email,
+      topic,
+      bookingRef,
+      text,
+      'new',
+      now,
+      now,
+    );
+    // the receipt only goes to the signed-in account's own address, so the form can't be used to email strangers
+    const receipt = !!user && user.email === email;
+    if (receipt) {
+      await sendMail(db, req, email, 'contact', {
+        subject: `We got your message (${id})`,
+        heading: 'Thanks, your message reached us',
+        lines: [
+          `Hi ${firstName(user.name)}, your message is with the SightLine team, and we’ll reply to this address.`,
+          'If you write again about the same thing, mention the reference below so we can find it quickly.',
+        ],
+        facts: [['Reference', id], ['About', topicLabel(topic)], ...(bookingRef ? [['Booking', bookingRef] as [string, string]] : [])],
+      });
+    }
+    return send(res, 201, { id, receipt });
+  }
+
   if (path[0] === 'admin') return adminRoutes(db, req, res, method, path.slice(1), query, await requireAdmin(db, req));
 
   throw new ApiError(404, 'not_found', 'No such endpoint.');
@@ -1373,6 +1502,8 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     const rows = (await db.all<AdminBookingRow>(`${ADMIN_BOOKINGS_SQL} ORDER BY b.created_at DESC`)).map(adminBookingJson);
     const refunds = await db.get<{ n: number; amount: number }>("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS amount FROM payments WHERE status = 'refunded'");
     const users = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM users');
+    const unanswered = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM messages WHERE status = 'new'");
+    const ratings = await db.get<{ n: number; total: number }>('SELECT COUNT(*) AS n, COALESCE(SUM(rating), 0) AS total FROM seat_ratings');
     const now = Date.now();
     const sold = rows.filter((r) => r.paymentStatus === 'paid' || r.paymentStatus === 'due');
     const startOfToday = parseDateKey(dayKey()).getTime();
@@ -1403,11 +1534,57 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
         refunds: Number(refunds?.n ?? 0),
         refunded: Number(refunds?.amount ?? 0),
         users: Number(users?.n ?? 0),
+        newMessages: Number(unanswered?.n ?? 0),
+        ratings: Number(ratings?.n ?? 0),
+        ratingAverage: Number(ratings?.n) ? Math.round((Number(ratings!.total) / Number(ratings!.n)) * 10) / 10 : null,
       },
       daily,
       byTitle: group((r) => r.title).slice(0, 8),
       byCinema: group((r) => r.cinema),
       recent: rows.slice(0, 8),
+    });
+  }
+
+  // messages from the Contact page, newest first, with how many sit in each status
+  if (method === 'GET' && path[0] === 'messages' && !path[1]) {
+    const status = query.get('status') ?? 'new';
+    const rows = await db.all<MessageRow>('SELECT * FROM messages ORDER BY created_at DESC LIMIT 1000');
+    const counts = Object.fromEntries(MESSAGE_STATUSES.map((s) => [s, rows.filter((r) => r.status === s).length]));
+    const shown = status === 'all' ? rows : rows.filter((r) => r.status === status);
+    return send(res, 200, { messages: shown.map(messageJson), counts });
+  }
+
+  if (method === 'PATCH' && path[0] === 'messages' && path[1]) {
+    const body = await readJson(req);
+    const status = body.status as MessageStatus;
+    if (!MESSAGE_STATUSES.includes(status)) throw bad('invalid_status', 'Choose New, Replied or Closed.');
+    const changed = await db.run('UPDATE messages SET status = ?, updated_at = ? WHERE id = ?', status, Date.now(), path[1]);
+    if (!changed) throw new ApiError(404, 'message_not_found', 'That message no longer exists.');
+    return send(res, 200, { ok: true });
+  }
+
+  // how easy people found choosing a seat: the average, the spread, and the latest comments
+  if (method === 'GET' && path[0] === 'ratings') {
+    const rows = await db.all<{ booking_id: string; movie_id: string; rating: number; comment: string; updated_at: number; name: string }>(
+      'SELECT r.booking_id, r.movie_id, r.rating, r.comment, r.updated_at, u.name FROM seat_ratings r JOIN users u ON u.id = r.user_id ORDER BY r.updated_at DESC',
+    );
+    const count = rows.length;
+    const total = rows.reduce((n, r) => n + Number(r.rating), 0);
+    return send(res, 200, {
+      count,
+      average: count ? Math.round((total / count) * 10) / 10 : null,
+      distribution: [1, 2, 3, 4, 5].map((v) => rows.filter((r) => Number(r.rating) === v).length),
+      comments: rows
+        .filter((r) => r.comment)
+        .slice(0, 10)
+        .map((r) => ({
+          bookingId: r.booking_id,
+          title: getMovie(r.movie_id)?.title ?? r.movie_id,
+          rating: Number(r.rating),
+          comment: r.comment,
+          name: r.name,
+          at: Number(r.updated_at),
+        })),
     });
   }
 

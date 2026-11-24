@@ -179,6 +179,16 @@ export default function HelpPage() {
             </section>
           ))}
 
+          <section className="help-contact" aria-labelledby="help-contact-title">
+            <div>
+              <h2 id="help-contact-title">Still Need Help?</h2>
+              <p className="muted">Send us a message about a booking, an idea, or anything else, and we’ll reply by email.</p>
+            </div>
+            <Link to="/contact" className="btn btn-secondary">
+              Contact Us
+            </Link>
+          </section>
+
           <section id="terms" className="legal">
             <h2>Terms</h2>
             <p>
