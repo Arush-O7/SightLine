@@ -2,6 +2,8 @@
 
 **Book a cinema seat after you’ve seen the view from it.** SightLine is a ticket booking product for movies and live shows in Delhi’s cinemas. Every auditorium is modelled to scale in 3D, so before you pay you can sit in any seat and see the screen exactly as it looks from there, with a view score that says how good that seat really is.
 
+**Try it live: [sightline07.vercel.app](https://sightline07.vercel.app).** On the sign-in page, **Continue With Demo Account** books as a customer and **Sign in as the demo admin** opens the staff pages. Payments run in test mode, so no money moves; card 4111 1111 1111 1111 is approved.
+
 ![SightLine booking: switching between seats in a 3D model of the auditorium, then viewing the whole hall](docs/demo.webp)
 
 ## The problem
@@ -88,7 +90,7 @@ The API suite runs against SQLite and PostgreSQL, and passes with the server’s
 
 | Showtimes with the best view left | Seat details |
 |---|---|
-| ![A movie's Sunday showtimes, grouped by cinema and auditorium, each time with the best view score still free for four seats together and how full it is](docs/screenshots/showtimes.jpg) | ![The Details pop-up for seat M11: distance, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg) |
+| ![A movie's Sunday showtimes, grouped by cinema and auditorium, each time with the best view score still free for four seats together and how full it is, and directions to each cinema](docs/screenshots/showtimes.jpg) | ![The Details pop-up for seat M11: distance, field of view, offset from centre and head tilt](docs/screenshots/seat-details.jpg) |
 | **Live shows in the same halls** | **A cinema and its auditoriums** |
 | ![Live shows: comedy, music, cricket screenings and theatre](docs/screenshots/live-shows.jpg) | ![A cinema page with its photo, lobby and auditoriums](docs/screenshots/cinema.jpg) |
 | **Checkout with test payments** | **Ticket with the booked view** |
@@ -115,7 +117,7 @@ npm run dev
 
 Open [localhost:5173](http://localhost:5173). With no settings the data lives in a local SQLite file; `.env.example` lists the optional settings (PostgreSQL, email, Google sign-in, a TMDB key for larger posters). On the sign-in page, **Continue With Demo Account** books as a customer and **Sign in as the demo admin** opens the admin pages.
 
-For production, `npm run build` then `npm start`, or `docker compose up`. `vercel.json` deploys the site and API to Vercel with a hosted PostgreSQL.
+For production, `npm run build` then `npm start`, or `docker compose up`. `vercel.json` deploys the site and API to Vercel; the live demo runs in Vercel’s Singapore region on a Neon PostgreSQL database in the same region.
 
 ## Tech stack
 
