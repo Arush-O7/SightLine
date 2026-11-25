@@ -553,8 +553,9 @@ async function sendMail(db: Query, req: IncomingMessage, to: string, kind: strin
     kind,
     Date.now(),
   );
-  // reserved addresses (name@example.com) only ever exist in the Demo Inbox
-  if (!isReservedEmail(to)) void deliver(to, content.subject, html, text);
+  // Reserved addresses (name@example.com) only ever exist in the Demo Inbox. The send is awaited because a
+  // serverless function is frozen once it responds, which would cut off a send left running in the background.
+  if (!isReservedEmail(to)) await deliver(to, content.subject, html, text);
 }
 
 const firstName = (name: string) => name.split(' ')[0];

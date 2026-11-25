@@ -59,6 +59,10 @@ export async function deliver(to: string, subject: string, html: string, text: s
       host: process.env.SMTP_HOST,
       port,
       secure: port === 465,
+      // a slow mail server should delay a booking by seconds at most, never hold it open
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS ?? '' } : undefined,
     });
     await transport.sendMail({ from: process.env.MAIL_FROM, to, subject, html, text });
