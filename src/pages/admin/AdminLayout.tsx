@@ -5,6 +5,7 @@ import { useStore } from '../../lib/store';
 export default function AdminLayout() {
   const user = useStore((s) => s.user);
   const ready = useStore((s) => s.authReady);
+  const config = useStore((s) => s.config);
   const { pathname } = useLocation();
   if (!ready) {
     return (
@@ -41,6 +42,12 @@ export default function AdminLayout() {
           <NavLink to="/admin/messages">Messages</NavLink>
         </nav>
       </header>
+      {config?.inbox === 'reserved' && user.email === config.demoAdminEmail ? (
+        <p className="admin-demo-note" role="note">
+          You’re looking around as the demo admin. On the live site it can’t change anything, and it shows only demo customers, so real
+          people’s details stay private.
+        </p>
+      ) : null}
       <Outlet />
     </div>
   );

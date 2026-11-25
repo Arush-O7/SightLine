@@ -167,6 +167,8 @@ export interface SiteConfig {
   demo: boolean;
   realEmail: boolean;
   demoEmail: string | null;
+  /** the one-click demo admin, which is read-only and sees only demo customers on a public site */
+  demoAdminEmail: string | null;
   /** 'all' on the presenter's own machine; elsewhere only mail to reserved addresses such as name@example.com */
   inbox: 'all' | 'reserved';
   google: boolean;

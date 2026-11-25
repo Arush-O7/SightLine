@@ -18,6 +18,8 @@ from pathlib import Path
 from playwright.sync_api import Page, expect, sync_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:5173").rstrip("/")
+# the server treats requests from its own machine as the presenter: demo tools and the demo admin work in full
+LOCAL = re.match(r"https?://(localhost|127\.0\.0\.1)(:|/|$)", BASE) is not None
 SHOTS = Path(__file__).parent / "screenshots"
 SHOTS.mkdir(exist_ok=True)
 
@@ -399,6 +401,16 @@ def run() -> None:
             spage.get_by_role("button", name=re.compile("demo admin")).click()
             spage.wait_for_url(re.compile(r"#/admin"))
             expect(spage.locator(".admin-tiles dd").first).to_contain_text("₹")
+            if not LOCAL:
+                # on the live site the demo admin can look but not change anything, and real customers stay private
+                expect(spage.locator(".admin-demo-note")).to_be_visible()
+                spage.get_by_role("link", name="Prices", exact=True).click()
+                panel = spage.locator(".admin-price-grid form").filter(has_text="Standard")
+                panel.get_by_role("button", name="Save Prices").click()
+                expect(spage.locator(".form-error")).to_contain_text("can’t change the live site", timeout=8000)
+                staff.close()
+                return
+            expect(spage.locator(".admin-demo-note")).to_have_count(0)
             spage.get_by_role("link", name="Shows", exact=True).click()
             spage.get_by_label("Day").select_option(index=1)  # tomorrow, so late in the day there are still shows to cancel
             row = spage.locator(".admin-list li").filter(has=spage.get_by_role("button", name="Cancel", exact=True)).first

@@ -327,6 +327,7 @@ Two families. Anything pressed is a full pill (`999px`): buttons, chips, tabs, s
 - A live show: a 16:10 photo with the kind (Comedy, Music, Sports, Theatre) in a translucent pill top-left, then the title at Title size, the tagline in Muted, when and where it plays next, and the lowest price. Same Surface card, hover lift and photo zoom as the Cinema Card.
 
 ### Admin
+- On the live site the one-click demo admin is read-only and sees only demo customers; a hairline-bordered Muted note under the tab bar says so. Saving anything there shows the usual form error. Locally, and for real staff accounts, the note is absent.
 - A plain working surface: the page title and a pill tab bar (Overview, Shows, Titles, Prices, Bookings, Customers, Messages), then Surface panels. Overview leads with eight stat tiles, including new messages and the seat-choice rating, (value at Headline size above a Muted label), a single-series bar chart of the last 14 days in Muted bars that turn Paper on hover with a tooltip, two ranked lists with thin Muted bars, and the latest bookings.
 - Forms (Add a show, Add a movie or live show, Prices) use labelled 42px fields on Ink Raised with a Hairline Strong border, laid out in a four-column grid that drops to two and then one column on narrow screens. Each price field shows its default beside the zone name.
 - Tables use Faint 12px headers, hairline rows, tabular figures right-aligned, and a Muted sub-line under each primary value. Destructive actions take two steps: a Secondary "Cancel", then a Danger confirmation beside a Text "Keep".

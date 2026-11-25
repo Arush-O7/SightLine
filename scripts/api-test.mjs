@@ -550,6 +550,8 @@ r = await staff('GET', '/admin/messages?status=replied');
 check('a replied message moves to Replied', r.data.messages.some((m) => m.id === visitorMessage) && r.data.counts.replied === 1);
 r = await staff('PATCH', `/admin/messages/${visitorMessage}`, { status: 'archived' });
 check('only New, Replied and Closed are allowed', r.status === 400 && r.data.error.code === 'invalid_status');
+r = await anon('POST', '/messages', { ...note, name: 'Ravi Real', email: 'ravi.real@gmail.com' });
+check('a message from a real-looking address is stored too', r.status === 201);
 let contactLimited = false;
 for (let i = 0; i < 6 && !contactLimited; i++) contactLimited = (await anon('POST', '/messages', note)).status === 429;
 check('sending messages is rate limited', contactLimited);
@@ -571,6 +573,24 @@ r = await staff('GET', '/admin/ratings');
 check('staff see the average and the comment', r.status === 200 && r.data.count === 1 && r.data.average === 5 && r.data.comments[0]?.comment === 'Saw the view before paying.', JSON.stringify(r.data));
 r = await staff('GET', '/admin/overview');
 check('the overview counts new messages and the rating', r.data.totals.newMessages >= 2 && r.data.totals.ratingAverage === 5, JSON.stringify(r.data.totals));
+
+// the one-click demo admin as seen from outside the server: read-only, and only demo customers
+const RESERVED = /@(?:[\w-]+\.)*(?:example\.(?:com|net|org)|[\w-]+\.(?:test|example|invalid|localhost))$/i;
+const fromOutside = { 'X-Forwarded-For': '198.51.100.20' };
+r = await staff('GET', '/admin/users');
+check('on the server itself the demo admin sees every account', r.data.users.some((u) => !RESERVED.test(u.email)));
+r = await staff('GET', '/admin/users', undefined, fromOutside);
+check('from outside, the demo admin sees only demo customers', r.status === 200 && r.data.users.length > 0 && r.data.users.every((u) => RESERVED.test(u.email)));
+r = await staff('GET', '/admin/messages?status=all', undefined, fromOutside);
+check('from outside, real people’s messages are hidden', r.status === 200 && r.data.messages.length > 0 && !r.data.messages.some((m) => m.email === 'ravi.real@gmail.com'));
+r = await staff('GET', '/admin/overview', undefined, fromOutside);
+check('from outside, the overview lists only demo customers’ bookings', r.status === 200 && r.data.recent.every((b) => RESERVED.test(b.customer.email)));
+r = await staff('PUT', '/admin/prices', { prices: [] }, fromOutside);
+check('from outside, the demo admin cannot change prices', r.status === 403 && r.data.error.code === 'demo_read_only');
+r = await staff('PATCH', `/admin/users/${demoUser.id}`, { role: 'admin' }, fromOutside);
+check('from outside, the demo admin cannot make anyone an admin', r.status === 403);
+r = await staff('POST', '/admin/titles', { kind: 'comedy', title: 'Defaced' }, fromOutside);
+check('from outside, the demo admin cannot add titles', r.status === 403);
 
 // brute-force limit
 let limited = false;

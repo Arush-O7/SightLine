@@ -912,6 +912,8 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
       demo: demoEnabled(),
       realEmail: smtpConfigured(),
       demoEmail: demoEnabled() ? DEMO_USER.email : null,
+      // on a public site the demo admin is read-only and sees only demo customers
+      demoAdminEmail: demoEnabled() ? DEMO_ADMIN.email : null,
       inbox: inboxScope(req),
       google: googleConfigured(),
       database: db.kind,
@@ -1497,6 +1499,15 @@ function showParts(id: string) {
 async function adminRoutes(db: Database, req: IncomingMessage, res: ServerResponse, method: string, path: string[], query: URLSearchParams, admin: User) {
   res.setHeader('Cache-Control', 'no-store');
 
+  // The one-click demo admin is open to every visitor, so on a public site it may look around but not
+  // change anything, and it sees only demo customers (reserved addresses such as @example.com), never
+  // real people. On the server's own machine (development, the test suites) it works like any staff account.
+  const sandbox = admin.email === DEMO_ADMIN.email && !isLoopback(req);
+  if (sandbox && method !== 'GET') {
+    throw new ApiError(403, 'demo_read_only', 'The demo admin can look around but can’t change the live site. Sign in with a staff account to make changes.');
+  }
+  const visible = (email: string) => !sandbox || isReservedEmail(email);
+
   // headline numbers, the last two weeks of sales, and what sells
   if (method === 'GET' && path[0] === 'overview') {
     const rows = (await db.all<AdminBookingRow>(`${ADMIN_BOOKINGS_SQL} ORDER BY b.created_at DESC`)).map(adminBookingJson);
@@ -1541,14 +1552,14 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
       daily,
       byTitle: group((r) => r.title).slice(0, 8),
       byCinema: group((r) => r.cinema),
-      recent: rows.slice(0, 8),
+      recent: rows.filter((r) => visible(r.customer.email)).slice(0, 8),
     });
   }
 
   // messages from the Contact page, newest first, with how many sit in each status
   if (method === 'GET' && path[0] === 'messages' && !path[1]) {
     const status = query.get('status') ?? 'new';
-    const rows = await db.all<MessageRow>('SELECT * FROM messages ORDER BY created_at DESC LIMIT 1000');
+    const rows = (await db.all<MessageRow>('SELECT * FROM messages ORDER BY created_at DESC LIMIT 1000')).filter((r) => visible(r.email));
     const counts = Object.fromEntries(MESSAGE_STATUSES.map((s) => [s, rows.filter((r) => r.status === s).length]));
     const shown = status === 'all' ? rows : rows.filter((r) => r.status === status);
     return send(res, 200, { messages: shown.map(messageJson), counts });
@@ -1565,8 +1576,8 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
 
   // how easy people found choosing a seat: the average, the spread, and the latest comments
   if (method === 'GET' && path[0] === 'ratings') {
-    const rows = await db.all<{ booking_id: string; movie_id: string; rating: number; comment: string; updated_at: number; name: string }>(
-      'SELECT r.booking_id, r.movie_id, r.rating, r.comment, r.updated_at, u.name FROM seat_ratings r JOIN users u ON u.id = r.user_id ORDER BY r.updated_at DESC',
+    const rows = await db.all<{ booking_id: string; movie_id: string; rating: number; comment: string; updated_at: number; name: string; email: string }>(
+      'SELECT r.booking_id, r.movie_id, r.rating, r.comment, r.updated_at, u.name, u.email FROM seat_ratings r JOIN users u ON u.id = r.user_id ORDER BY r.updated_at DESC',
     );
     const count = rows.length;
     const total = rows.reduce((n, r) => n + Number(r.rating), 0);
@@ -1575,7 +1586,7 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
       average: count ? Math.round((total / count) * 10) / 10 : null,
       distribution: [1, 2, 3, 4, 5].map((v) => rows.filter((r) => Number(r.rating) === v).length),
       comments: rows
-        .filter((r) => r.comment)
+        .filter((r) => r.comment && visible(r.email))
         .slice(0, 10)
         .map((r) => ({
           bookingId: r.booking_id,
@@ -1594,6 +1605,7 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     const now = Date.now();
     const rows = (await db.all<AdminBookingRow>(`${ADMIN_BOOKINGS_SQL} ORDER BY b.created_at DESC LIMIT 2000`))
       .map(adminBookingJson)
+      .filter((r) => visible(r.customer.email))
       .filter((r) => (when === 'upcoming' ? (r.start ?? 0) > now : when === 'past' ? (r.start ?? 0) <= now : true))
       .filter((r) => !q || [r.id, r.title, r.cinema, r.customer.name, r.customer.email].some((f) => f.toLowerCase().includes(q)))
       .sort((a, b) => (when === 'upcoming' ? (a.start ?? 0) - (b.start ?? 0) : b.createdAt - a.createdAt))
@@ -1739,7 +1751,9 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
         (SELECT COALESCE(SUM(b.total), 0) FROM bookings b WHERE b.user_id = u.id) AS spent
        FROM users u ORDER BY u.created_at DESC LIMIT 500`,
     );
-    return send(res, 200, { users: rows.map((r) => ({ ...userJson(r), bookings: Number(r.bookings), spent: Number(r.spent) })) });
+    return send(res, 200, {
+      users: rows.filter((r) => visible(r.email)).map((r) => ({ ...userJson(r), bookings: Number(r.bookings), spent: Number(r.spent) })),
+    });
   }
 
   if (method === 'PATCH' && path[0] === 'users' && path[1]) {
