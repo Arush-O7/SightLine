@@ -70,3 +70,31 @@ export async function deliver(to: string, subject: string, html: string, text: s
     console.error('[mail] delivery failed:', (err as Error).message);
   }
 }
+
+export interface Mail {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
+/**
+ * Sends a batch two at a time, starting no new send after `budgetMs`, so a large batch can't hold a
+ * request past the host's time limit. Anything left is logged; every email is already in the outbox.
+ */
+export async function deliverAll(mails: Mail[], budgetMs = 9000): Promise<void> {
+  if (!smtpConfigured() || !mails.length) return;
+  const stopAt = Date.now() + budgetMs;
+  const queue = [...mails];
+  const worker = async () => {
+    for (let m = queue.shift(); m; m = queue.shift()) {
+      if (Date.now() > stopAt) {
+        queue.unshift(m);
+        return;
+      }
+      await deliver(m.to, m.subject, m.html, m.text);
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  if (queue.length) console.error(`[mail] ran out of time: ${queue.length} of ${mails.length} emails were not sent`);
+}

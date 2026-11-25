@@ -50,9 +50,11 @@ import { HALLS, defaultPrice, findBestSeats, getHall, getLayout, setZonePrices, 
 import { getDb, isUniqueViolation, type Database, type Query } from './db.js';
 import { charge } from './gateway.js';
 import { GoogleError, googleAuthUrl, googleConfigured, googleProfile } from './google.js';
-import { deliver, renderMail, smtpConfigured, type MailContent } from './mail.js';
+import { deliver, deliverAll, renderMail, smtpConfigured, type Mail, type MailContent } from './mail.js';
 
 const HOLD_MS = 7 * 60 * 1000;
+// an account holds seats for at most this many shows at once, so nobody can sit on seats across the programme
+const MAX_HELD_SHOWS = 3;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const COOKIE = 'sl_session';
 const OAUTH_COOKIE = 'sl_oauth';
@@ -154,7 +156,8 @@ const userJson = (r: UserRow): User => ({
   hasPassword: !!Number(r.has_password),
   google: !!Number(r.has_google),
   createdAt: Number(r.created_at),
-  role: r.role === 'admin' || adminEmails().has(r.email) ? 'admin' : 'user',
+  // ADMIN_EMAILS counts only once the address is confirmed, or anyone could sign up with a listed address first
+  role: r.role === 'admin' || (r.email_verified_at != null && adminEmails().has(r.email)) ? 'admin' : 'user',
 });
 
 async function loadUser(db: Query, id: number): Promise<User> {
@@ -541,8 +544,11 @@ async function recordPayment(
   );
 }
 
-/** Records the email in the outbox (the demo inbox reads this) and sends it if SMTP is configured. */
-async function sendMail(db: Query, req: IncomingMessage, to: string, kind: string, content: MailContent) {
+/**
+ * Records the email in the outbox (the demo inbox reads this) and sends it if SMTP is configured.
+ * With `later`, the send is added to that list instead, for a caller that sends many at once.
+ */
+async function sendMail(db: Query, req: IncomingMessage, to: string, kind: string, content: MailContent, later?: Mail[]) {
   const { html, text } = renderMail({ ...content, logoUrl: content.logoUrl ?? `${siteUrl(req)}/brand/sightline-tile-96.png` });
   await db.run(
     'INSERT INTO outbox (to_email, subject, html, body_text, kind, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -555,7 +561,9 @@ async function sendMail(db: Query, req: IncomingMessage, to: string, kind: strin
   );
   // Reserved addresses (name@example.com) only ever exist in the Demo Inbox. The send is awaited because a
   // serverless function is frozen once it responds, which would cut off a send left running in the background.
-  if (!isReservedEmail(to)) await deliver(to, content.subject, html, text);
+  if (isReservedEmail(to)) return;
+  if (later) later.push({ to, subject: content.subject, html, text });
+  else await deliver(to, content.subject, html, text);
 }
 
 const firstName = (name: string) => name.split(' ')[0];
@@ -655,7 +663,7 @@ async function seedDemoBookings(db: Database, userId: number) {
 }
 
 /** Cancels a booking, frees its seats, refunds a paid one and emails the customer. */
-async function cancelBooking(db: Database, req: IncomingMessage, row: BookingRow, email: string, byStaff: boolean): Promise<boolean> {
+async function cancelBooking(db: Database, req: IncomingMessage, row: BookingRow, email: string, byStaff: boolean, later?: Mail[]): Promise<boolean> {
   const seats = await seatsOf(db, row.id);
   const refunded = row.payment_status === 'paid';
   await db.tx(async (q) => {
@@ -672,7 +680,7 @@ async function cancelBooking(db: Database, req: IncomingMessage, row: BookingRow
         : 'Nothing was due, so there is nothing to refund.',
     ],
     facts: bookingFacts(row, seats).slice(0, 4),
-  });
+  }, later);
   return refunded;
 }
 
@@ -741,6 +749,14 @@ export const isReservedEmail = (email: string) => RESERVED_EMAIL.test(email);
 // The Demo Inbox shows everything on the server's own machine, but only mail to
 // reserved addresses anywhere else, so a public demo never leaks real emails.
 const inboxScope = (req: IncomingMessage): 'all' | 'reserved' => (isLoopback(req) ? 'all' : 'reserved');
+
+// Every visitor shares the one-click demo accounts, so on a public site nobody may rename them, change
+// their password, delete them or sign the other visitors out.
+function guardDemoAccount(req: IncomingMessage, user: User) {
+  if ((user.email === DEMO_USER.email || user.email === DEMO_ADMIN.email) && !isLoopback(req)) {
+    throw new ApiError(403, 'demo_account', 'The demo account is shared by every visitor, so its settings can’t be changed. Create your own account to try this.');
+  }
+}
 
 async function googleRoutes(db: Database, req: IncomingMessage, res: ServerResponse, step: string, query: URLSearchParams) {
   const clearState = () => addCookie(res, `${OAUTH_COOKIE}=; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=0`);
@@ -964,7 +980,8 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     if (method === 'GET' && path[1] === 'me') return send(res, 200, { user: await currentUser(db, req) });
 
     if (method === 'POST' && path[1] === 'signup') {
-      await limit(db, req, 'auth', 10);
+      // counted apart from sign-in, so a mistyped password doesn't also block making an account
+      await limit(db, req, 'signup', 10);
       const body = await readJson(req);
       const name = cleanName(body.name);
       const email = cleanEmail(body.email);
@@ -1107,6 +1124,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
 
     if (method === 'PATCH' && path[1] === 'me') {
       const user = await requireUser(db, req);
+      guardDemoAccount(req, user);
       const body = await readJson(req);
       const name = cleanName(body.name);
       await db.run('UPDATE users SET name = ? WHERE id = ?', name, user.id);
@@ -1116,6 +1134,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     if (method === 'DELETE' && path[1] === 'me') {
       await limit(db, req, 'password', 10);
       const user = await requireUser(db, req);
+      guardDemoAccount(req, user);
       const body = await readJson(req);
       const confirm = typeof body.confirm === 'string' ? body.confirm.trim().toLowerCase() : '';
       if (confirm !== user.email) throw bad('confirm_mismatch', 'Type your email address exactly to confirm.');
@@ -1142,6 +1161,7 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
     if (method === 'POST' && path[1] === 'password') {
       await limit(db, req, 'password', 10);
       const { user, tokenHash } = await requireSession(db, req);
+      guardDemoAccount(req, user);
       const body = await readJson(req);
       const next = cleanPassword(body.newPassword);
       const row = await db.get<{ pass_hash: string; pass_salt: string }>('SELECT pass_hash, pass_salt FROM users WHERE id = ?', user.id);
@@ -1178,6 +1198,8 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
           .sort((a, b) => Number(b.current) - Number(a.current));
         return send(res, 200, { sessions });
       }
+
+      if (method === 'DELETE') guardDemoAccount(req, user);
 
       if (method === 'DELETE' && path[2]) {
         const id = path[2];
@@ -1226,6 +1248,12 @@ async function route(req: IncomingMessage, res: ServerResponse, method: string, 
         await db.tx(async (q) => {
           await purgeExpiredHolds(q);
           await q.run('DELETE FROM holds WHERE show_id = ? AND user_id = ?', show.id, user.id);
+          // holding seats for one more show releases the oldest hold beyond the limit
+          const others = await q.all<{ show_id: string }>(
+            'SELECT show_id FROM holds WHERE user_id = ? GROUP BY show_id ORDER BY MAX(expires_at) DESC',
+            user.id,
+          );
+          for (const old of others.slice(MAX_HELD_SHOWS - 1)) await q.run('DELETE FROM holds WHERE show_id = ? AND user_id = ?', old.show_id, user.id);
           const taken = await unavailableSeats(q, show, layout, user.id);
           const lost = seats.filter((id) => taken.has(id));
           if (lost.length) throw new ApiError(409, 'seats_taken', `Seat ${lost.join(', ')} was just taken. Pick another.`, { seats: lost });
@@ -1717,7 +1745,10 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
     if (!show) throw new ApiError(404, 'show_not_found', 'That show is not on the programme.');
     if (show.start.getTime() <= Date.now()) throw new ApiError(409, 'show_started', 'This show has already started.');
     const bookings = await db.all<BookingRow & { email: string }>('SELECT b.*, u.email FROM bookings b JOIN users u ON u.id = b.user_id WHERE b.show_id = ?', show.id);
-    for (const row of bookings) await cancelBooking(db, req, row, row.email, true);
+    // Every booking and the programme change are saved before any email goes out. Sending one email per
+    // customer inside the request could otherwise run past the host's time limit halfway through.
+    const emails: Mail[] = [];
+    for (const row of bookings) await cancelBooking(db, req, row, row.email, true, emails);
     await db.run('DELETE FROM holds WHERE show_id = ?', show.id);
     const dropped = await db.run(
       "DELETE FROM schedule_changes WHERE action = 'add' AND movie_id = ? AND cinema_id = ? AND screen_id = ? AND date_key = ? AND time = ?",
@@ -1730,6 +1761,7 @@ async function adminRoutes(db: Database, req: IncomingMessage, res: ServerRespon
       );
     }
     await syncSchedule(db, true);
+    await deliverAll(emails);
     return send(res, 200, { ok: true, cancelledBookings: bookings.length });
   }
 

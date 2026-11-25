@@ -140,6 +140,20 @@ check('a confirmation link works only once', r.status === 400);
 r = await b('POST', '/auth/verify/resend', {});
 check('resend on a confirmed account sends nothing', r.status === 200 && r.data.alreadyVerified === true);
 
+// an address in ADMIN_EMAILS gets staff access only once its owner confirms it
+const BOSS = 'boss@staff.test';
+const boss = client();
+r = await boss('POST', '/auth/signup', { name: 'Listed Boss', email: BOSS, password: PW });
+check('signing up with an address in ADMIN_EMAILS gives no staff access before it is confirmed', r.status === 201 && r.data.user.role === 'user', JSON.stringify(r.data));
+r = await boss('GET', '/admin/overview');
+check('and the admin pages stay closed', r.status === 403);
+r = await anon('GET', '/demo/outbox');
+const bossToken = /verify\?token=([\w-]+)/.exec(r.data.emails.find((e) => e.kind === 'verify' && e.to === BOSS)?.html ?? '')?.[1];
+await anon('POST', '/auth/verify', { token: bossToken });
+r = await boss('GET', '/auth/me');
+if (r.data.user.role === 'admin') check('once confirmed, an address in ADMIN_EMAILS is staff', true);
+else console.log(`      (ADMIN_EMAILS check skipped: start the server with ADMIN_EMAILS=${BOSS})`);
+
 r = await anon('POST', `/shows/${SHOW}/hold`, { seats: ['A1'] });
 check('hold requires sign-in', r.status === 401);
 r = await a('POST', `/shows/nope.20260101.pvr-plaza~a1.1000/hold`, { seats: ['A1'] });
@@ -235,6 +249,15 @@ r = await a('DELETE', `/bookings/${booking.id}`);
 check('A cancels the booking', r.status === 200);
 r = await b('POST', `/shows/${SHOW}/hold`, { seats: [s1] });
 check('cancelled seat is free again', r.status === 200, JSON.stringify(r.data));
+
+// one account can hold seats for three shows at once; a fourth releases the oldest hold
+const moreShows = listing.shows.filter((x) => x.id !== SHOW).slice(0, 3);
+for (const x of moreShows) await b('POST', `/shows/${x.id}/hold`, { seats: await freeSeatsAt(x.id, 1, 'ABCDEFG') });
+r = await b('GET', `/shows/${SHOW}/seats`);
+check('holding seats for a fourth show releases the oldest hold', moreShows.length === 3 && r.data.hold === null, JSON.stringify(r.data.hold));
+r = await b('GET', `/shows/${moreShows[0].id}/seats`);
+check('the newer holds are kept', !!r.data.hold, JSON.stringify(r.data.hold));
+for (const x of moreShows) await b('DELETE', `/shows/${x.id}/hold`);
 r = await anon('GET', '/demo/outbox');
 check('cancellation email mentions the refund', r.data.emails.some((e) => e.kind === 'cancelled' && e.to === mail(1) && e.html.includes('refund')));
 
@@ -287,6 +310,19 @@ r = await demo('DELETE', '/auth/sessions');
 check('sign out all other devices', r.status === 200 && r.data.removed >= 1, JSON.stringify(r.data));
 r = await demo('GET', '/auth/me');
 check('this device stays signed in', !!r.data.user);
+
+// on a public site nobody can change the shared demo account for everyone else
+const viaProxy = { 'X-Forwarded-For': '198.51.100.30' };
+r = await demo('PATCH', '/auth/me', { name: 'Someone Else' }, viaProxy);
+check('from outside, the demo account cannot be renamed', r.status === 403 && r.data.error.code === 'demo_account', JSON.stringify(r.data));
+r = await demo('POST', '/auth/password', { currentPassword: 'sightline-demo-2026', newPassword: 'locked you out' }, viaProxy);
+check('from outside, its password cannot be changed', r.status === 403);
+r = await demo('DELETE', '/auth/sessions', undefined, viaProxy);
+check('from outside, other visitors cannot be signed out', r.status === 403);
+r = await demo('DELETE', '/auth/me', { confirm: 'demo@sightline.test' }, viaProxy);
+check('from outside, the demo account cannot be deleted', r.status === 403);
+r = await demo('GET', '/auth/me');
+check('the demo account is unchanged', r.data.user?.name === 'Demo Viewer', JSON.stringify(r.data.user));
 
 // CSRF-style request: wrong origin, and a non-JSON body
 r = await a('POST', '/auth/logout', {}, { Origin: 'https://evil.example' });
@@ -388,8 +424,8 @@ r = await b2('GET', '/auth/me');
 check('deleted account is signed out', r.data.user === null);
 r = await anon('GET', '/demo/outbox');
 check('deletion is confirmed by email', r.data.emails.some((e) => e.kind === 'deleted' && e.to === mail(2)));
-r = await anon('POST', '/auth/signup', { name: 'Bob Returns', email: mail(2), password: PW });
-check('the email can be used again after deletion', r.status === 201 || r.status === 429, String(r.status));
+r = await client()('POST', '/auth/signup', { name: 'Bob Returns', email: mail(2), password: PW });
+check('the email can be used again after deletion', r.status === 201, String(r.status));
 
 // live shows play in the same auditoriums
 let liveShows = 0;
@@ -404,7 +440,7 @@ check('live shows are on the programme', liveShows > 0);
 
 // cinema staff
 const cust = client();
-await cust('POST', '/auth/demo', {}); // sign-up is rate limited by now, so use the demo customer
+await cust('POST', '/auth/demo', {}); // the demo customer, who already has tickets
 r = await anon('GET', '/admin/overview');
 check('admin pages need sign-in', r.status === 401);
 r = await cust('GET', '/admin/overview');
@@ -455,7 +491,7 @@ check('the customer is told the cinema cancelled', r.data.emails.some((e) => e.k
 
 r = await staff('GET', '/admin/users');
 const chitra = r.data.users?.find((u) => u.email === 'demo@sightline.test');
-const me = r.data.users?.find((u) => u.role === 'admin');
+const me = r.data.users?.find((u) => u.email === 'admin@sightline.test');
 check('admin lists accounts with their bookings', r.status === 200 && !!chitra && typeof chitra.bookings === 'number');
 r = await staff('PATCH', `/admin/users/${me.id}`, { role: 'user' });
 check('an admin cannot change their own role', r.status === 409);
